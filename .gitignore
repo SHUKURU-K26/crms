@@ -3,6 +3,5 @@ vendor/
 .DS_Store
 other files/
 *.log
-scss/
 backup/
 $Temp*/
