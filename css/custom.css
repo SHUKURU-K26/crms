@@ -1,0 +1,72 @@
+.save-btns{
+    background-color: rgb(30, 179, 30);
+    width: 100px;
+    border-radius: 5px;
+    padding: 5px;
+    color: white;
+    border: none;
+}
+.save-btns:hover{
+    opacity: .7;
+}
+
+#alertBox, #successAlertBox {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #f8d7da;
+    color: #842029;
+    padding: 1rem 2rem;
+    border: 1px solid #f5c2c7;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    font-family: Arial, sans-serif;
+    max-width: 600px;     /* max width to keep it neat on big screens */
+    width: 90vw;          /* responsive width - 90% of viewport width */
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+    text-align: center;
+    word-wrap: break-word; /* break long words nicely */
+  }
+
+  /* Optional: smaller padding and font on very small devices */
+  @media (max-width: 400px) {
+    #alertBox {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+    }
+  }
+  #successAlertBox {
+    background-color: #ffffff;
+    color: #0f5132;
+    border-color: #00864a;
+    border: 2px solid #00864a;
+  }
+  .edit-icons:hover{
+    cursor: pointer;
+  }
+  .status-available {
+    background-color: #4CAF50; /* green */
+    color: rgb(255, 255, 255);
+    font-weight: bold;
+    text-align: center;
+}
+
+.status-rented {
+    background-color: #0c0079; /* red */
+    color: white;
+    font-weight: bold;
+    text-align: center;
+}
+
+.status-debt {
+  background-color: #f43636; /* red */
+  color: white;
+  font-weight: bold;
+  text-align: center;
+}
+
+  
+  
