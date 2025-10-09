@@ -167,6 +167,7 @@
         <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <h6 class="collapse-header">Settings</h6>
+                <a class="collapse-item" href="systemStatus.php">System Status</a>
                 <a class="collapse-item" href="profile.php">Profile</a>
                 <a class="collapse-item" href="change_password.php">Change Password</a>
                 <a class="collapse-item" href="#">Logout</a>                        
