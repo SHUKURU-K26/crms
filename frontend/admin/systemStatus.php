@@ -15,26 +15,41 @@ if (isset($_POST['toggle_status'])) {
     
     if ($conn->query($update_sql) === TRUE) {
         $action = ($new_status === 'disabled') ? 'disabled' : 'enabled';
+        $bg_color = ($new_status === 'disabled') ? 'linear-gradient(135deg, #e74a3b, #c0392b)' : 'linear-gradient(135deg, #1cc88a, #13855c)';
         echo "
-            <div id='successAlertBox' style='position: fixed; top: 20px; right: 20px; z-index: 9999; background: linear-gradient(135deg, #1cc88a, #13855c); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);'>
+            <div id='successAlertBox' style='position: fixed; top: 20px; right: 20px; z-index: 9999; background: $bg_color; color: white; padding: 20px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);'>
                 <i class='fas fa-check-circle'></i> User account successfully $action!
             </div>
             <script>
-            document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
                 const alertBox = document.getElementById('successAlertBox');
+                alertBox.style.transition = 'all 0.5s ease';
+                alertBox.style.transform = 'translateX(100%)';
+                alertBox.style.opacity = '0';
                 setTimeout(() => {
-                    alertBox.style.transform = 'translateX(100%)';
-                    alertBox.style.opacity = '0';
-                    setTimeout(() => {
-                        alertBox.remove();
-                        window.location.href = '';
-                    }, 500);
-                }, 3000);
-            });
+                    alertBox.remove();
+                    window.location.href = '';
+                }, 500);
+            }, 3000);
             </script>
         ";
     } else {
-        echo "<script>alert('Error updating account status.');</script>";
+        echo "
+            <div id='errorAlertBox' style='position: fixed; top: 20px; right: 20px; z-index: 9999; background: linear-gradient(135deg, #e74a3b, #c0392b); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);'>
+                <i class='fas fa-exclamation-circle'></i> Error updating account status!
+            </div>
+            <script>
+            setTimeout(() => {
+                const alertBox = document.getElementById('errorAlertBox');
+                alertBox.style.transition = 'all 0.5s ease';
+                alertBox.style.transform = 'translateX(100%)';
+                alertBox.style.opacity = '0';
+                setTimeout(() => {
+                    alertBox.remove();
+                }, 500);
+            }, 3000);
+            </script>
+        ";
     }
 }
 
@@ -355,9 +370,6 @@ if (isset($_SESSION["adminEmail"])){
                                 if (count($name_parts) > 1) {
                                     $initials .= strtoupper(substr($name_parts[1], 0, 1));
                                 }
-                                
-                                // Role badge color
-                                $role_color = ($row['role'] === 'admin') ? '#f6c23e' : '#36b9cc';
                         ?>
                         
                         <div class="col-xl-4 col-md-6">
@@ -397,22 +409,19 @@ if (isset($_SESSION["adminEmail"])){
                                     
                                     <?php if ($row['role'] !== 'admin'): ?>
                                     <div class="action-buttons">
-                                        <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" style="flex: 1;">
-                                            <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>" />
-                                            <input type="hidden" name="current_status" value="<?php echo $account_status; ?>" />
-                                            
-                                            <?php if ($account_status === 'active' || $account_status === NULL): ?>
-                                                <button type="submit" name="toggle_status" class="btn btn-disable btn-toggle" 
-                                                        onclick="return confirm('Are you sure you want to disable this account? The user will not be able to log in.')">
-                                                    <i class="fas fa-ban"></i> Disable Account
-                                                </button>
-                                            <?php else: ?>
-                                                <button type="submit" name="toggle_status" class="btn btn-enable btn-toggle"
-                                                        onclick="return confirm('Are you sure you want to enable this account? The user will be able to log in again.')">
-                                                    <i class="fas fa-check"></i> Enable Account
-                                                </button>
-                                            <?php endif; ?>
-                                        </form>
+                                        <?php if ($account_status === 'active' || $account_status === NULL): ?>
+                                            <button type="button" class="btn btn-disable btn-toggle" 
+                                                    data-toggle="modal" 
+                                                    data-target="#disableModal<?php echo $row['user_id']; ?>">
+                                                <i class="fas fa-ban"></i> Disable Account
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button" class="btn btn-enable btn-toggle"
+                                                    data-toggle="modal" 
+                                                    data-target="#enableModal<?php echo $row['user_id']; ?>">
+                                                <i class="fas fa-check"></i> Enable Account
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                     <?php else: ?>
                                     <div class="alert alert-info mt-3 mb-0" style="font-size: 12px; padding: 8px;">
@@ -445,13 +454,113 @@ if (isset($_SESSION["adminEmail"])){
         </div>
     </div>
 
+    <!-- All Modals (Outside of user cards loop) -->
+    <?php
+    // Re-query to generate modals
+    $query->data_seek(0);
+    while ($row = $query->fetch_assoc()) {
+        $account_status = $row['account_status'] ?? 'active';
+        if ($row['role'] !== 'admin'):
+    ?>
+    
+    <!-- Disable Confirmation Modal -->
+    <div class="modal fade" id="disableModal<?php echo $row['user_id']; ?>" tabindex="-1" role="dialog" aria-labelledby="disableModalLabel<?php echo $row['user_id']; ?>" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #e74a3b 0%, #c0392b 100%); color: white; border: none;">
+                    <h5 class="modal-title" id="disableModalLabel<?php echo $row['user_id']; ?>">
+                        <i class="fas fa-exclamation-triangle"></i> Disable Account
+                    </h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close" style="color: white;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 30px; text-align: center;">
+                    <div style="font-size: 60px; color: #e74a3b; margin-bottom: 20px;">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <h5 style="color: #2c3e50; margin-bottom: 15px;">
+                        Are you sure you want to disable this account?
+                    </h5>
+                    <p style="color: #6c757d; margin-bottom: 10px;">
+                        <strong><?php echo htmlspecialchars($row['full_name']); ?></strong>
+                    </p>
+                    <p style="color: #6c757d; font-size: 14px;">
+                        This user will not be able to log in until the account is re-enabled.
+                    </p>
+                </div>
+                <div class="modal-footer" style="border: none; padding: 20px; justify-content: center;">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal" style="border-radius: 8px; padding: 10px 25px; margin-right: 10px;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" style="display: inline;">
+                        <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>" />
+                        <input type="hidden" name="current_status" value="<?php echo $account_status; ?>" />
+                        <button type="submit" name="toggle_status" class="btn" style="background: #e74a3b; color: white; border: none; border-radius: 8px; padding: 10px 25px;">
+                            <i class="fas fa-ban"></i> Yes, Disable
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Enable Confirmation Modal -->
+    <div class="modal fade" id="enableModal<?php echo $row['user_id']; ?>" tabindex="-1" role="dialog" aria-labelledby="enableModalLabel<?php echo $row['user_id']; ?>" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%); color: white; border: none;">
+                    <h5 class="modal-title" id="enableModalLabel<?php echo $row['user_id']; ?>">
+                        <i class="fas fa-check-circle"></i> Enable Account
+                    </h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close" style="color: white;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 30px; text-align: center;">
+                    <div style="font-size: 60px; color: #1cc88a; margin-bottom: 20px;">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h5 style="color: #2c3e50; margin-bottom: 15px;">
+                        Are you sure you want to enable this account?
+                    </h5>
+                    <p style="color: #6c757d; margin-bottom: 10px;">
+                        <strong><?php echo htmlspecialchars($row['full_name']); ?></strong>
+                    </p>
+                    <p style="color: #6c757d; font-size: 14px;">
+                        This user will be able to log in and access the system again.
+                    </p>
+                </div>
+                <div class="modal-footer" style="border: none; padding: 20px; justify-content: center;">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal" style="border-radius: 8px; padding: 10px 25px; margin-right: 10px;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" style="display: inline;">
+                        <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>" />
+                        <input type="hidden" name="current_status" value="<?php echo $account_status; ?>" />
+                        <button type="submit" name="toggle_status" class="btn" style="background: #1cc88a; color: white; border: none; border-radius: 8px; padding: 10px 25px;">
+                            <i class="fas fa-check"></i> Yes, Enable
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <?php
+        endif;
+    }
+    ?>
+
     <!-- Logout Modal -->
-    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="logoutModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Are you Sure?</h5>
-                    <button class="close" type="button" data-dismiss="modal"><span>&times;</span></button>
+                    <h5 class="modal-title" id="logoutModalLabel">Are you Sure?</h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">Select "Logout" to Logout from your account.</div>
                 <div class="modal-footer">
