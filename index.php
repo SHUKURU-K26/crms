@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $password = isset($_POST["password"]) ? htmlspecialchars(trim($_POST["password"])) : '';
 
         // Check for Admin credentials securely
-        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND role='admin'");
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND role='admin' AND account_status='Active'");
         $stmt->bind_param("s", $username);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -41,7 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->close();
 
       // Check staff credentials securely
-      $stmt2=$conn->prepare("SELECT * FROM users WHERE username = ?  AND role='staff'");
+      $stmt2=$conn->prepare("SELECT * FROM users WHERE username = ?  AND role='staff' AND account_status='Active'");
         $stmt2->bind_param("s", $username);
         $stmt2->execute();
         $result2 = $stmt2->get_result();
