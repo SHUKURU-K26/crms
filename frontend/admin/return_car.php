@@ -132,15 +132,26 @@ function processFullyPaidReturn($conn, $data) {
         $stmt = $conn->prepare("INSERT INTO external_rental_history 
             (renter_names, renter_phone, renter_national_id, car_name, car_plate, 
              date_rented_on, expected_return_date, date_returned_on, days_in_rent, 
-             rental_fee, revenue_received, revenue_status, expected_revenue,lifecycle_status,refund_due, provider_names)
+             rental_fee, revenue_received, revenue_status, expected_revenue, lifecycle_status, refund_due, provider_names)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         $stmt->bind_param("ssssssssidisdsds", 
-            $data['renter_name'], $data['telephone'], $data['id_number'],
-            $data['car_name'], $data['plate_number'], $data['rent_date'],
-            $data['expected_return_date'], $data['date_returned_on'], $data['days_in_rent'],
-            $data['price_per_day'], $data['final_revenue'], $data['revenue_status'],
-            $data['expected_revenue'], $data['lifecycle_status'], $data['refund_due'], $data['provider_name']
+            $data['renter_name'], 
+            $data['telephone'], 
+            $data['id_number'],
+            $data['car_name'], 
+            $data['plate_number'], 
+            $data['rent_date'],
+            $data['expected_return_date'], 
+            $data['date_returned_on'], 
+            $data['days_in_rent'],
+            $data['price_per_day'], 
+            $data['final_revenue'], 
+            $data['revenue_status'],
+            $data['expected_revenue'], 
+            $data['lifecycle_status'], // Now properly bound
+            $data['refund_due'], 
+            $data['provider_name']
         );
 
     } else {
@@ -208,34 +219,54 @@ function processFullyPaidReturn($conn, $data) {
 }
 
 function processPartialPaidReturn($conn, $data){
-    // 1. Insert into rental history (different table based on view type)
-    if ($data['view_type'] === 'external') {
+     // 1. Insert into rental history (different table based on view type)
+     if ($data['view_type'] === 'external') {
         $stmt = $conn->prepare("INSERT INTO external_rental_history 
             (renter_names, renter_phone, renter_national_id, car_name, car_plate, 
-             date_rented_on, expected_return_date, date_returned_on, days_in_rent, 
-             rental_fee, revenue_received, revenue_status, expected_revenue,lifecycle_status, refund_due, provider_names)
+            date_rented_on, expected_return_date, date_returned_on, days_in_rent, 
+            rental_fee, revenue_received, revenue_status, expected_revenue, lifecycle_status, refund_due, provider_names)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param("ssssssssidisdsds", 
+            $data['renter_name'], 
+            $data['telephone'], 
+            $data['id_number'],
+            $data['car_name'], 
+            $data['plate_number'], 
+            $data['rent_date'],
+            $data['expected_return_date'], 
+            $data['date_returned_on'], 
+            $data['days_in_rent'],
+            $data['price_per_day'], 
+            $data['partial_amount'], 
+            $data['revenue_status'],
+            $data['expected_revenue'], 
+            $data['lifecycle_status'], // Now properly bound
+            $data['refund_due'], 
+            $data['provider_name']
+        );
+        
     } else {
         $stmt = $conn->prepare("INSERT INTO rental_history 
             (renter_names, renter_phone, renter_national_id, car_name, car_plate, 
              date_rented_on, expected_return_date, date_returned_on, days_in_rent, 
              rental_fee, revenue_received, revenue_status, expected_revenue, refund_due, provider_names)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param("ssssssssidisdds", 
+            $data['renter_name'], $data['telephone'], $data['id_number'],
+            $data['car_name'], $data['plate_number'], $data['rent_date'],
+            $data['expected_return_date'], $data['date_returned_on'], $data['days_in_rent'],
+            $data['price_per_day'], $data['partial_amount'], $data['revenue_status'],
+            $data['expected_revenue'], $data['refund_due'], $data['provider_name']
+        );
     }
-    
-    $stmt->bind_param("ssssssssidisdds", 
-        $data['renter_name'], $data['telephone'], $data['id_number'],
-        $data['car_name'], $data['plate_number'], $data['rent_date'],
-        $data['expected_return_date'], $data['date_returned_on'], $data['days_in_rent'],
-        $data['price_per_day'], $data['partial_amount'], $data['revenue_status'],
-        $data['expected_revenue'], $data['refund_due'], $data['provider_name']
-    );
     
     if (!$stmt->execute()) {
         throw new Exception("Failed to insert rental history: " . $stmt->error);
     }
     $stmt->close();
-
+    
    // 2. Insert into payments table (payment_type based on view)
     $payment_type = ($data['view_type'] === 'external') ? 'external' : 'internal';
     $stmt = $conn->prepare("INSERT INTO payments(payment_type, amount_paid, paid_by, payer_phone, payer_national_id, car_payed_for, plate, status, balance)

@@ -106,7 +106,7 @@ if (isset($_SESSION["adminEmail"])){
                                     <tbody>
                                         <?php
                                         include "../../web_db/connection.php";
-                                        $sql="SELECT * FROM external_rental_history WHERE lifecycle_status = 'active' ORDER BY date_rented_on DESC";
+                                        $sql="SELECT * FROM external_rental_history  ORDER BY date_rented_on DESC";
                                         $result=$conn->query($sql);
                                             if ($result->num_rows > 0) {
                                                 $count = 0;
