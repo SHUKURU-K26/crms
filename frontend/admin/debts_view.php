@@ -186,10 +186,11 @@ function processPartialDebtPayment($conn, $data) {
             (amount_paid, paid_by, payer_phone, payer_national_id, car_payed_for, plate, status, balance, payment_type)
             VALUES (?, ?, ?, ?, ?, ?, 'Half paid', ?, ?)");
         
-        $stmt->bind_param("dsssssdss", 
+        $stmt->bind_param("dssssdss", 
             $data['partial_amount'], $data['renter_name'], $data['telephone'], 
             $data['id_number'], $data['car_name'], $data['plate_number'], $new_debt_amount, $payment_type
         );
+
         
         if (!$stmt->execute()) {
             throw new Exception("Failed to create payment record: " . $stmt->error);
