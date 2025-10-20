@@ -24,7 +24,7 @@
 
     <!-- Heading -->
     <div class="sidebar-heading">
-        Car & Renting
+        Car & Renting & Booking
     </div>
 
     <!-- Nav Item - Pages Collapse Menu -->
@@ -51,7 +51,7 @@
         <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
             aria-expanded="true" aria-controls="collapseUtilities">
             <i class="fas fa-fw fa-key"></i>
-            <span>Renting</span>
+            <span>Renting & Booking</span>
         </a>
 
         <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities" data-parent="#accordionSidebar">
@@ -59,6 +59,7 @@
                 <h6 class="collapse-header">Renting Menus:</h6>
                 <a class="collapse-item" href="rent_car.php">Rent</a>
                 <a class="collapse-item" href="return_car.php">Rentals</a>
+                <a class="collapse-item" href="booking.php">Initiate Booking</a>
             </div>
         </div>
     </li>
@@ -125,13 +126,28 @@
         <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#rentalHistory"
             aria-expanded="true" aria-controls="rentalHistory">
             <i class="fas fa-fw fa-folder"></i>
-            <span>Rental History</span>
+            <span>Renting History</span>
         </a>
         <div id="rentalHistory" class="collapse" aria-labelledby="rentalHistory" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <h6 class="collapse-header">Internal & External</h6>
-                <a class="collapse-item" href="rental_history.php">Internal History</a>
-                <a class="collapse-item" href="external_rental_history.php">External History</a>
+                <a class="collapse-item" href="internal_renting_history.php">Internal Rent</a>
+                <a class="collapse-item" href="external_renting_history.php">External Rent</a>
+            </div>
+        </div>
+
+
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#returnHistory"
+            aria-expanded="true" aria-controls="returnHistory">
+            <i class="fas fa-fw fa-folder"></i>
+            <span>Returning History</span>
+        </a>
+
+        <div id="returnHistory" class="collapse" aria-labelledby="returnHistory" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <h6 class="collapse-header">Internal & External</h6>
+                <a class="collapse-item" href="internal_return_history.php">Internal Return</a>
+                <a class="collapse-item" href="external_return_history.php">External Return</a>
             </div>
         </div>
 
