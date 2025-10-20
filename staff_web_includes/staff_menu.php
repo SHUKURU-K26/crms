@@ -37,8 +37,7 @@
         <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <h6 class="collapse-header">All Cars</h6>                                
-                <a class="collapse-item" href="internal_status.php">Internal Status</a>
-                <a class="collapse-item" href="external_status.php">External Status</a>
+                <a class="collapse-item" href="staff_overview.php">Cars Overview</a>                
             </div>
         </div>
     </li>
