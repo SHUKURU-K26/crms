@@ -294,7 +294,7 @@ if (isset($_SESSION["adminEmail"])){
                                     <div class="stat-label">Internal Revenue</div>
                                     <div class="stat-number revenue-number">
                                         <?php
-                                        $internalRevenueSql = "SELECT SUM(revenue_received) AS internal_revenue FROM rental_history";
+                                        $internalRevenueSql = "SELECT SUM(amount_paid) AS internal_revenue FROM payments";
                                         $result = $conn->query($internalRevenueSql);
                                         $internalRevenue = 0;
                                         if ($result->num_rows > 0) {
@@ -327,7 +327,7 @@ if (isset($_SESSION["adminEmail"])){
                                     <div class="stat-label">Available External</div>
                                     <div class="stat-number">
                                         <?php
-                                        $availableExternalSql = "SELECT COUNT(car_id) AS available_external FROM external_cars WHERE status='available'";
+                                        $availableExternalSql = "SELECT COUNT(car_id) AS available_external FROM external_cars WHERE status='available' AND lifecycle_status = 'active'";
                                         $result = $conn->query($availableExternalSql);
                                         $availableExternal = 0;
                                         if ($result->num_rows > 0) {

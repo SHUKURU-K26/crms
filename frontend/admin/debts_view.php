@@ -86,13 +86,9 @@ function processFullDebtPayment($conn, $data) {
     $payment_type = $data['debt_type'];
     
     // 1. Update payments table - mark as fully paid
-    $stmt = $conn->prepare("UPDATE payments 
-        SET amount_paid = amount_paid + ?, status = 'Full paid', balance = 0 
-        WHERE car_payed_for = ? AND plate = ? AND paid_by = ? AND status = 'Half paid' AND payment_type = ?");
-    
-    $stmt->bind_param("dssss", 
-        $data['debt_amount'], $data['car_name'], $data['plate_number'], $data['renter_name'], $payment_type
-    );
+    $stmt = $conn->prepare("UPDATE payments SET amount_paid = amount_paid + ?, status = 'Full paid', balance = 0 
+    WHERE car_payed_for = ? AND plate = ? AND paid_by = ? AND status = 'Half paid' AND payment_type = ?");
+    $stmt->bind_param("dssss", $data['debt_amount'], $data['car_name'], $data['plate_number'], $data['renter_name'], $payment_type);
     
     // If no existing payment record, create a new one
     if (!$stmt->execute() || $stmt->affected_rows == 0) {
@@ -114,15 +110,36 @@ function processFullDebtPayment($conn, $data) {
     }
     $stmt->close();
     
-    // 2. Update car status back to 'available' (remove 'with Debt' status)
-    $stmt = $conn->prepare("UPDATE cars SET status = 'available' 
-        WHERE car_name = ? AND plate_number = ?");
-    $stmt->bind_param("ss", $data['car_name'], $data['plate_number']);
-    
-    if (!$stmt->execute()) {
-        throw new Exception("Failed to update car status: " . $stmt->error);
+    // 🔥 NEW SECTION 2: Update rental records to reflect zero balance
+    // This is critical so return_car.php shows 0 balance
+    if ($data['debt_type'] === 'internal') {
+        // Update INTERNAL rental: set total_fee and balance to 0
+        $updateRentalStmt = $conn->prepare("UPDATE rentals 
+            INNER JOIN cars ON rentals.car_id = cars.car_id 
+            SET rentals.total_fee = 0, rentals.balance = 0 
+            WHERE cars.car_name = ? AND cars.plate_number = ? AND rentals.renter_full_name = ?");
+        
+        $updateRentalStmt->bind_param("sss", $data['car_name'], $data['plate_number'], $data['renter_name']);
+        
+        if (!$updateRentalStmt->execute()) {
+            throw new Exception("Failed to update internal rental balance: " . $updateRentalStmt->error);
+        }
+        $updateRentalStmt->close();
+        
+    } else {
+        // Update EXTERNAL rental: set total_fee and balance to 0
+        $updateRentalStmt = $conn->prepare("UPDATE external_rentals 
+            INNER JOIN external_cars ON external_rentals.car_id = external_cars.car_id 
+            SET external_rentals.total_fee = 0, external_rentals.balance = 0 
+            WHERE external_cars.car_name = ? AND external_cars.plate_number = ? AND external_rentals.renter_full_name = ?");
+        
+        $updateRentalStmt->bind_param("sss", $data['car_name'], $data['plate_number'], $data['renter_name']);
+        
+        if (!$updateRentalStmt->execute()) {
+            throw new Exception("Failed to update external rental balance: " . $updateRentalStmt->error);
+        }
+        $updateRentalStmt->close();
     }
-    $stmt->close();
     
     // 3. Delete the debt record (debt is fully cleared)
     $stmt = $conn->prepare("DELETE FROM debts WHERE debt_id = ?");
@@ -133,7 +150,7 @@ function processFullDebtPayment($conn, $data) {
     }
     $stmt->close();
     
-    // 4. Update rental history based on debt type
+    // 4. Update rental history based on debt type (if record exists)
     if ($data['debt_type'] === 'internal') {
         // Update internal rental history
         $stmt = $conn->prepare("UPDATE rental_history 
@@ -166,39 +183,68 @@ function processPartialDebtPayment($conn, $data) {
     
     $new_debt_amount = $data['current_debt_amount'] - $data['partial_amount'];
     $payment_type = $data['debt_type'];
+
+    $checkPaymentStmt = $conn->prepare("SELECT * FROM payments 
+       WHERE car_payed_for = ? AND plate = ? AND paid_by = ? AND status = 'Half paid' AND payment_type = ?");
+    $checkPaymentStmt->bind_param("ssss", $data['car_name'], $data['plate_number'], $data['renter_name'], $payment_type);
+    $checkPaymentStmt->execute();
+    $existingPayment = $checkPaymentStmt->get_result()->fetch_assoc();
+    $checkPaymentStmt->close();
     
-    // 1. Update payments table - add to amount paid, reduce balance
-    $stmt = $conn->prepare("UPDATE payments 
-        SET amount_paid = amount_paid + ?, balance = balance - ? 
-        WHERE car_payed_for = ? AND plate = ? AND paid_by = ? AND status = 'Half paid' AND payment_type = ?");
-    
-    $stmt->bind_param("ddssss", 
-        $data['partial_amount'], $data['partial_amount'], 
-        $data['car_name'], $data['plate_number'], $data['renter_name'], $payment_type
-    );
-    
-    // If no existing payment record, create a new one
-    if (!$stmt->execute() || $stmt->affected_rows == 0) {
-        $stmt->close();
+    if ($existingPayment) {
+        // 1. Update payments table - add to amount paid, reduce balance
+        $stmt = $conn->prepare("UPDATE payments 
+            SET amount_paid = amount_paid + ?, balance = balance - ? 
+            WHERE car_payed_for = ? AND plate = ? AND paid_by = ? AND status = 'Half paid' AND payment_type = ?");
         
+        $stmt->bind_param("ddssss", 
+            $data['partial_amount'], $data['partial_amount'], $data['car_name'], $data['plate_number'], $data['renter_name'], $payment_type
+        );
+        
+        $stmt->execute();
+        $stmt->close();
+    } else {
         // Create new payment record
         $stmt = $conn->prepare("INSERT INTO payments 
-            (amount_paid, paid_by, payer_phone, payer_national_id, car_payed_for, plate, status, balance, payment_type)
-            VALUES (?, ?, ?, ?, ?, ?, 'Half paid', ?, ?)");
+        (amount_paid, paid_by, payer_phone, payer_national_id, car_payed_for, plate, status, balance, payment_type)
+        VALUES (?, ?, ?, ?, ?, ?, 'Half paid', ?, ?)");
         
-        $stmt->bind_param("dssssdss", 
+        $stmt->bind_param("dsssssds", 
             $data['partial_amount'], $data['renter_name'], $data['telephone'], 
             $data['id_number'], $data['car_name'], $data['plate_number'], $new_debt_amount, $payment_type
         );
 
-        
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to create payment record: " . $stmt->error);
-        }
+        $stmt->execute();
+        $stmt->close();
     }
-    $stmt->close();
+
+    // 2. Update Rental Record Balance based on debt type
+    if ($data['debt_type'] === 'internal') {
+        // Update INTERNAL rental balance
+        $updateRentalStmt = $conn->prepare("UPDATE rentals INNER JOIN cars ON rentals.car_id = cars.car_id 
+            SET rentals.balance = rentals.balance - ?, rentals.total_fee = rentals.total_fee - ?
+            WHERE cars.car_name = ? AND cars.plate_number = ? AND rentals.renter_full_name = ?");
+        
+        $updateRentalStmt->bind_param("ddsss", 
+            $data['partial_amount'], $data['partial_amount'], $data['car_name'], $data['plate_number'], $data['renter_name']
+        );
+        $updateRentalStmt->execute();
+        $updateRentalStmt->close();
+        
+    } else {
+        // Update EXTERNAL rental balance
+        $updateRentalStmt = $conn->prepare("UPDATE external_rentals INNER JOIN external_cars ON external_rentals.car_id = external_cars.car_id 
+            SET external_rentals.balance = external_rentals.balance - ?, external_rentals.total_fee = external_rentals.total_fee - ?
+            WHERE external_cars.car_name = ? AND external_cars.plate_number = ? AND external_rentals.renter_full_name = ?");
+        
+        $updateRentalStmt->bind_param("ddsss", 
+            $data['partial_amount'], $data['partial_amount'], $data['car_name'], $data['plate_number'], $data['renter_name']
+        );
+        $updateRentalStmt->execute();
+        $updateRentalStmt->close();
+    }
     
-    // 2. Update debt amount
+    // 3. Update debt amount
     if ($new_debt_amount > 0) {
         $stmt = $conn->prepare("UPDATE debts SET debt_amount = ? WHERE debt_id = ?");
         $stmt->bind_param("di", $new_debt_amount, $data['debt_id']);
@@ -215,7 +261,7 @@ function processPartialDebtPayment($conn, $data) {
         return;
     }
     
-    // 3. Update rental history based on debt type
+    // 4. Update rental history based on debt type
     if ($data['debt_type'] === 'internal') {
         // Update internal rental history
         $stmt = $conn->prepare("UPDATE rental_history 
@@ -314,16 +360,11 @@ if (isset($_SESSION["adminEmail"])){
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
     <title>GuestPro CMS | All Rented Cars</title>
-
-    <!-- Custom fonts for this template-->
     <link href="../../vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
     <link href="../../css/custom.css" rel="stylesheet">
@@ -332,22 +373,14 @@ if (isset($_SESSION["adminEmail"])){
     <link rel="icon" href="../../img/GuestProLogoReal.JPG" type="image/png">
     <link href="../../vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 </head>
-
 <body id="page-top">
-
-    <!-- Page Wrapper -->
     <div id="wrapper">
-        <!-- Sidebar -->
         <?php include "../../web_includes/menu.php"; ?>
         
-        <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
-            <!-- Main Content -->
             <div id="content">
-                <!-- Topbar -->
                 <?php include "../../web_includes/topbar.php"; ?>
 
-                <!-- Begin Page Content -->
                 <div class="container-fluid">
                     <div style="display: flex;justify-content:space-between;">
                         <h1 class="h3 mb-2" style="color: red;font-weight:bold;">
@@ -359,7 +392,6 @@ if (isset($_SESSION["adminEmail"])){
                     </div><br>
 
                     <div class="enhanced-container">
-                        <!-- Controls -->
                         <div class="enhanced-controls">
                             <div class="search-container">
                                 <i class="fas fa-search search-icon"></i>
@@ -381,19 +413,13 @@ if (isset($_SESSION["adminEmail"])){
                             </div>
                         </div>
 
-                        <!-- Table Container -->
                         <div class="table-container" id="tableContainer">
                             <table class="enhanced-table" id="dataTable">
-                                <thead id="tableHead">
-                                    <!-- Headers will be set by JavaScript -->
-                                </thead>
-                                <tbody id="tableBody">
-                                    <!-- Data will be populated by JavaScript -->
-                                </tbody>
+                                <thead id="tableHead"></thead>
+                                <tbody id="tableBody"></tbody>
                             </table>
                         </div>
 
-                        <!-- No Results -->
                         <div class="no-results" id="noResults">
                             <i class="fas fa-search" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
                             <h4>No rentals found</h4>
@@ -401,9 +427,7 @@ if (isset($_SESSION["adminEmail"])){
                         </div>
                     </div>
 
-                    <!-- PHP Data for JavaScript -->
                     <script>
-                        // Internal rentals data
                         const internalRentalsData=[
                             <?php
                             $sql = "SELECT * FROM debts WHERE debt_type='internal' ORDER BY debt_id DESC";
@@ -418,7 +442,6 @@ if (isset($_SESSION["adminEmail"])){
                             ?>
                         ];
 
-                        // External rentals data
                         const externalRentalsData = [
                             <?php
                             $sql = "SELECT * FROM debts WHERE debt_type='external' ORDER BY debt_id DESC";
@@ -437,17 +460,14 @@ if (isset($_SESSION["adminEmail"])){
                 </div>
             </div>
 
-            <!-- Footer -->
             <?php include "../../web_includes/footer.php"; ?>
         </div>
     </div>
 
-    <!-- Scroll to Top Button-->
     <a class="scroll-to-top rounded" href="#page-top">
         <i class="fas fa-angle-up"></i>
     </a>
 
-    <!-- Logout Modal-->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -468,12 +488,10 @@ if (isset($_SESSION["adminEmail"])){
         </div>
     </div>
 
-    <!-- Bootstrap core JavaScript-->
     <script src="../../vendor/jquery/jquery.min.js"></script>
     <script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="../../vendor/jquery-easing/jquery.easing.min.js"></script>
     <script src="../../js/sb-admin-2.min.js"></script>
-    <script src="../../vendor/chart.js/Chart.min.js"></script>
     <script src="../../vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="../../vendor/datatables/dataTables.bootstrap4.min.js"></script>
     <script src="../../js/mycustomjs.js"></script>
@@ -493,10 +511,8 @@ if (isset($_SESSION["adminEmail"])){
             filteredData = [...currentData];
             renderTable();
         }
-        
 
         function setupEventListeners(){
-            // Search functionality
             $('#searchInput').on('input', function() {
                 const query = $(this).val().toLowerCase();
                 if (query === '') {
@@ -511,20 +527,9 @@ if (isset($_SESSION["adminEmail"])){
                 renderTable();
             });
 
-            // View toggle
             $('.toggle-btn').on('click', function() {
                 const view = $(this).data('view');
                 switchView(view);
-            });
-
-            // Modal event handlers
-            $(document).on('click', '.return-btn', function() {
-                // Modal functionality will be handled by existing Bootstrap modal attributes
-            });
-
-            // Date change calculation
-            $(document).on('change', '.return-date-input', function(){
-                calculateAdjustments($(this));
             });
         }
 
@@ -553,7 +558,6 @@ if (isset($_SESSION["adminEmail"])){
             const tableHead = $('#tableHead');
             const tableBody = $('#tableBody');
 
-            // Clear existing content
             tableHead.empty();
             tableBody.empty();
 
@@ -564,7 +568,6 @@ if (isset($_SESSION["adminEmail"])){
                 $('#noResults').removeClass('show');
                 $('#tableContainer').show();
 
-                // Render headers
                 tableHead.html(`
                     <tr> 
                         <th>N#</th>
@@ -574,12 +577,12 @@ if (isset($_SESSION["adminEmail"])){
                         <th>National ID</th>
                         <th>Mobile</th>
                         <th>Debt Amount</th>
+                        <th>Debt Onwer</th>
                         <th>Provided By</th>
                         <th style='min-width:105px;'>Action</th>
                     </tr>
                 `);
 
-                // Render data rows
                 filteredData.forEach((rental, index) => {
                     const row = `
                         <tr style="animation-delay: ${index * 0.1}s">
@@ -590,6 +593,7 @@ if (isset($_SESSION["adminEmail"])){
                             <td><strong style="color: #4e73df;">${rental.national_id}</strong></td>
                             <td><code>${rental.phone_number}</code></td>
                             <td style='color:red;font-weight:bold;'>${rental.debt_amount} FRW</td>
+                            <td style='color:green;font-weight:bold;'>${rental.debt_owner}</td>
                             <td>${rental.provider_names}</td>
                             <td>
                                 <button type="button" class="action-btn return-btn" 
@@ -601,7 +605,6 @@ if (isset($_SESSION["adminEmail"])){
                     `;
                     tableBody.append(row);
 
-                    // Create modal for each rental
                     createRentalModal(rental);
                 });
             }
@@ -611,8 +614,6 @@ if (isset($_SESSION["adminEmail"])){
 
         function createRentalModal(rental) {
             const modalId = `returnModal_${rental.debt_id}`;
-            
-            // Remove existing modal if it exists
             $(`#${modalId}`).remove();
 
             const modal = `
@@ -691,7 +692,7 @@ if (isset($_SESSION["adminEmail"])){
                                     <input type="hidden" name="debt_type" value="${rental.debt_type}">
                                     <input type="hidden" name="debt_amount" class="adjusted-revenue-hidden" value="${rental.debt_amount}">
                                     <div class="text-center mt-4">
-                                           <label>Select Payment Options</label>
+                                            <label>Select Payment Options</label>
                                             <select name='return_option' class='form-control' required>
                                                 <option value="">--Select If Portion or Full Paid--</option>
                                                 <option value="fully piad">Full Paying</option>
@@ -700,7 +701,7 @@ if (isset($_SESSION["adminEmail"])){
 
                                             <div id="partial-payment-box" style="display:none; margin-top:10px;">
                                                 <label>Enter Partial Amount Paid</label>
-                                                <input type="number" name="partial_amount" class="form-control partial-input" min="0" placeholder="Enter amount customer paid"
+                                                <input type="number" name="partial_amount" class="form-control partial-input" min="1" placeholder="Enter amount customer paid"
                                                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);">
                                                     <small class="text-info d-block mt-2">
                                                         Remaining Balance: <span class="remaining-balance font-weight-bold">0 FRW</span>
@@ -723,58 +724,42 @@ if (isset($_SESSION["adminEmail"])){
             $('body').append(modal);
             
             $(`#${modalId} select[name='return_option']`).on('change', function() {
-            const selected = $(this).val();
-            const partialInput = $(`#${modalId} .partial-input`);
+                const selected = $(this).val();
+                const partialInput = $(`#${modalId} .partial-input`);
 
-            if (selected === "partial paid") {
-                // Show and make required
-                $(`#${modalId} #partial-payment-box`).show();
-                partialInput.attr("required", true);
-            }
-            else{
-                // Hide and remove required
-                $(`#${modalId} #partial-payment-box`).hide();
-                partialInput.removeAttr("required").val("");
-                $(`#${modalId} .remaining-balance`).text("0 FRW");
-            }
-       });
+                if (selected === "partial paid") {
+                    $(`#${modalId} #partial-payment-box`).show();
+                    partialInput.attr("required", true);
+                } else {
+                    $(`#${modalId} #partial-payment-box`).hide();
+                    partialInput.removeAttr("required").val("");
+                    $(`#${modalId} .remaining-balance`).text("0 FRW");
+                }
+            });
             
+            $(`#${modalId} .partial-input`).on('input', function() {
+                let partial = parseInt($(this).val()) || 0;
+                const adjustedRevenue = parseInt($(`#${modalId} .adjusted-revenue-hidden`).val());
 
-                $(`#${modalId} .partial-input`).on('input', function() {
-                    let partial = parseInt($(this).val()) || 0;
-                    const adjustedRevenue = parseInt($(`#${modalId} .adjusted-revenue-hidden`).val());
+                if (partial > adjustedRevenue) {
+                    alert("Partial amount cannot exceed total debt amount!");
+                    $(this).val(0);
+                    partial = 0;
+                }
 
-                    // 🚫 If user types more than allowed, reset it back
-                    if (partial > adjustedRevenue) {
-                        alert("Partial amount cannot exceed total debt amount!");
-                        $(this).val(adjustedRevenue); // reset to max
-                        partial = adjustedRevenue;
-                    }
+                const remaining = Math.max(0, adjustedRevenue - partial);
+                $(`#${modalId} .remaining-balance`).text(remaining + " FRW");
+                $(`#${modalId} .remaining-balance-hidden`).val(remaining);
+            });
 
-                    const remaining = Math.max(0, adjustedRevenue - partial);
-                    $(`#${modalId} .remaining-balance`).text(remaining + " FRW");
-                    $(`#${modalId} .remaining-balance-hidden`).val(remaining); // save to hidden input
-                });
-
-            // When date changes -> recalc balance too
-                $(`#${modalId} .return-date-input`).on('change', function() {    
-                    const remaining = Math.max(0, adjustedRevenue - partial);
-                    $(`#${modalId} .remaining-balance`).text(remaining + " FRW");
-                    $(`#${modalId} .remaining-balance-hidden`).val(remaining); // <-- save to hidden input
-                });
-
-                // When typing partial amount
-                $(`#${modalId} .partial-input`).on('input', function() {
-                    const partial = parseInt($(this).val()) || 0;
-                    const adjustedRevenue = parseInt($(`#${modalId} .adjusted-revenue-hidden`).val());
-                    const remaining = Math.max(0, adjustedRevenue - partial);
-                    $(`#${modalId} .remaining-balance`).text(remaining + " FRW");
-                    $(`#${modalId} .remaining-balance-hidden`).val(remaining); // <-- save to hidden input
-                });
-
-
-    }    
-        
+            $(`#${modalId} .return-date-input`).on('change', function() {    
+                const partial = parseInt($(`#${modalId} .partial-input`).val()) || 0;
+                const adjustedRevenue = parseInt($(`#${modalId} .adjusted-revenue-hidden`).val());
+                const remaining = Math.max(0, adjustedRevenue - partial);
+                $(`#${modalId} .remaining-balance`).text(remaining + " FRW");
+                $(`#${modalId} .remaining-balance-hidden`).val(remaining);
+            });
+        }    
     </script>
 </body>
 </html>
