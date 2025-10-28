@@ -5,22 +5,22 @@ include "../../web_db/connection.php";
 
 // Cancel Booking Handler
 if (isset($_POST['cancel_booking'])){
+    $booking_id = $_POST['cancel_booking_id'];
     $car_id = $_POST['cancel_car_id'];
     $car_name = $_POST['cancel_car_name'];
     
-    // Reset booking columns to default
-    $cancelSql = "UPDATE cars SET 
-                  booking_status='Unbooked', 
-                  booking_date=NULL, 
-                  booking_return_date=NULL, 
-                  booking_amount=NULL,
-                  status='available'
-                  WHERE car_id=?";
-    
-    $stmt = $conn->prepare($cancelSql);
-    $stmt->bind_param("i", $car_id);
+    // Update booking status to cancelled in bookings table
+    $cancelBookingSql = "UPDATE bookings SET booking_status='cancelled' WHERE booking_id=?";
+    $stmt = $conn->prepare($cancelBookingSql);
+    $stmt->bind_param("i", $booking_id);
     
     if ($stmt->execute()) {
+        // Update car status back to available
+        $updateCarSql = "UPDATE cars SET booking_status='Unbooked' WHERE car_id=?";
+        $stmtCar = $conn->prepare($updateCarSql);
+        $stmtCar->bind_param("i", $car_id);
+        $stmtCar->execute();
+        
         echo "
         <div id='successAlertBox' style='position: fixed; top: 20px; right: 20px; z-index: 9999; background: linear-gradient(135deg, #1cc88a, #13855c); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);'>
             <i class='fas fa-check-circle'></i> Booking for $car_name has been cancelled successfully!
@@ -56,6 +56,7 @@ if (isset($_POST['cancel_booking'])){
         ";
     }
 }
+
 
 if (isset($_POST['delete'])){
     $car_id = $_POST['delete_id'];
@@ -467,6 +468,161 @@ if (isset($_SESSION["adminEmail"])){
         font-size: 16px;
     }
 }
+
+.car-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.detail-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.detail-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.detail-card-header {
+    font-size: 14px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-value {
+    font-weight: 500;
+    color: #212529;
+    text-align: right;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-available {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.status-rented {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.booking-status-booked {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.booking-status-unbooked {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    color: white;
+}
+
+.date-highlight {
+    background: #fff3cd;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #856404;
+}
+
+.date-expired {
+    background: #f8d7da;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #721c24;
+}
+
+.date-valid {
+    background: #d4edda;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #155724;
+}
+
+.booking-details-section {
+    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+    padding: 20px;
+    border-radius: 15px;
+    margin-top: 20px;
+}
+
+.booking-details-section h6 {
+    color: #4a148c;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover {
+    background-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Print styles */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #carDetailsContent, #carDetailsContent * {
+        visibility: visible;
+    }
+    #carDetailsContent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .modal-header, .modal-footer {
+        display: none !important;
+    }
+    .detail-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
     </style>
 </head>
 
@@ -606,50 +762,78 @@ if (isset($_SESSION["adminEmail"])){
 
     <!--Cancel Booking Modal-->
     <div class="modal fade" id="cancelBookingModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                <div class="modal-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; border-radius: 15px 15px 0 0;">
-                    <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle"></i> Cancel Booking Confirmation
-                    </h5>                
-                    <button class="close" type="button" data-dismiss="modal" style="color: white;">
-                        <span aria-hidden="true">×</span>
-                    </button>
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Cancel Booking Confirmation
+                </h5>                
+                <button class="close" type="button" data-dismiss="modal" style="color: white;">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 25px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <i class="fas fa-calendar-times" style="font-size: 3rem; color: #ff6b6b;"></i>
                 </div>
-                <div class="modal-body" style="padding: 25px;">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <i class="fas fa-calendar-times" style="font-size: 3rem; color: #ff6b6b;"></i>
-                    </div>
-                    <h5 style="text-align: center; margin-bottom: 15px;">
-                        Cancel booking for <strong id="cancelCarName" style="color: #ff6b6b;"></strong>?
-                    </h5>
-                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 15px;">
-                        <p style="margin: 0; color: #856404;">
-                            <i class="fas fa-info-circle"></i> <strong>Warning:</strong> This action will:
-                        </p>
-                        <ul style="margin: 10px 0 0 20px; color: #856404;">
-                            <li>Reset booking status to <strong>Unbooked</strong></li>
-                            <li>Clear all booking dates and amount</li>
-                            <li>Set car status back to <strong>Available</strong></li>
-                        </ul>
-                    </div>
-                    <p style="text-align: center; color: #6c757d;">
-                        Are you sure you want to proceed with cancelling this booking?
+                <h5 style="text-align: center; margin-bottom: 15px;">
+                    Cancel booking for <strong id="cancelCarName" style="color: #ff6b6b;"></strong>?
+                </h5>
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 15px;">
+                    <p style="margin: 0; color: #856404;">
+                        <i class="fas fa-info-circle"></i> <strong>Warning:</strong> This action will:
                     </p>
+                    <ul style="margin: 10px 0 0 20px; color: #856404;">
+                        <li>Mark the booking as <strong>Cancelled</strong></li>
+                        <li>Free up the car for new bookings</li>
+                        <li>Set car status back to <strong>Unbooked</strong></li>
+                    </ul>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" type="button" data-dismiss="modal">
-                        <i class="fas fa-times"></i> No, Keep Booking
-                    </button>
-                    <form action="" method="POST">       
-                        <input type="hidden" name="cancel_car_id" id="hiddenCancelCarId" />
-                        <input type="hidden" name="cancel_car_name" id="hiddenCancelCarName" />                 
-                        <input type="submit" name="cancel_booking" class="btn btn-danger" value="Yes, Cancel Booking"/>
-                    </form>
-                </div>
+                <p style="text-align: center; color: #6c757d;">
+                    Are you sure you want to proceed with cancelling this booking?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">
+                    <i class="fas fa-times"></i> No, Keep Booking
+                </button>
+                <form action="" method="POST">       
+                    <input type="hidden" name="cancel_booking_id" id="hiddenCancelBookingId" />
+                    <input type="hidden" name="cancel_car_id" id="hiddenCancelCarId" />
+                    <input type="hidden" name="cancel_car_name" id="hiddenCancelCarName" />                 
+                    <input type="submit" name="cancel_booking" class="btn btn-danger" value="Yes, Cancel Booking"/>
+                </form>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Car Details View Modal -->
+<div class="modal fade" id="carDetailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-bottom: none; border-radius: 20px 20px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-car"></i> Complete Car Details
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" style="color: white; opacity: 0.9;">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="carDetailsContent" style="padding: 30px;">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+            <div class="modal-footer" style="border-top: 2px solid #f0f0f0; padding: 20px;">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button type="button" class="btn btn-primary" onclick="printCarDetails()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                    <i class="fas fa-print"></i> Print Details
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Logout Modal-->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog">
@@ -700,9 +884,11 @@ if (isset($_SESSION["adminEmail"])){
             });
             
             $(document).on('click', '.cancel-booking-btn', function () {
-                var carId = $(this).data('id');
+                var bookingId = $(this).data('booking-id');
+                var carId = $(this).data('car-id');
                 var carName = $(this).data('name');
                 $('#cancelCarName').text(carName);
+                $('#hiddenCancelBookingId').val(bookingId);
                 $('#hiddenCancelCarId').val(carId);
                 $('#hiddenCancelCarName').val(carName);
             });
@@ -723,24 +909,42 @@ if (isset($_SESSION["adminEmail"])){
             $carDataJS = [];            
             $whereClause = "";
             $isSearching = false;
-           
+        
             if (isset($_GET['search_availability']) && isset($_GET['availability_date'])) {
                 $searchDate = mysqli_real_escape_string($conn, $_GET['availability_date']);
                 $isSearching = true;
                 
-                $whereClause = " WHERE (
-                    (booking_status = 'Unbooked' AND status = 'available')
-                    OR (
-                        booking_status = 'booked' 
-                        AND (
-                            booking_date > '$searchDate'
-                            OR booking_return_date < '$searchDate'
-                        )
-                    )
+                // Check cars that are either:
+                // 1. Not booked at all (no active/pending bookings)
+                // 2. Have bookings that don't overlap with the search date
+                $whereClause = " WHERE c.car_id NOT IN (
+                    SELECT car_id FROM bookings 
+                    WHERE booking_status IN ('pending', 'active')
+                    AND booking_date <= '$searchDate' 
+                    AND booking_return_date >= '$searchDate'
                 )";
             }
             
-            $sql = "SELECT * FROM cars" . $whereClause;
+            // Join cars with bookings to get booking details
+            $sql = "SELECT c.*, 
+                    c.insurance_issued_date,
+                    c.insurance_expiry_date,
+                    c.control_issued_date,
+                    c.control_expiry_date,
+                    b.booking_id,
+                    b.customer_name,
+                    b.customer_national_id,
+                    b.customer_phone,
+                    b.booking_date,
+                    b.booking_return_date,
+                    b.booking_amount,
+                    b.booking_status as current_booking_status
+                    FROM cars c
+                    LEFT JOIN bookings b ON c.car_id = b.car_id 
+                    AND b.booking_status IN ('pending', 'active')
+                    " . $whereClause . "
+                    ORDER BY c.car_name ASC";
+            
             $result = $conn->query($sql);
             if ($result->num_rows > 0) {
                 $count = 0;
@@ -754,10 +958,14 @@ if (isset($_SESSION["adminEmail"])){
                     $rowCategory = $resultCategory->fetch_assoc();
                     $stmt->close();
                     
+                    // Determine if car is available on search date
                     $isAvailable = false;
-                    if ($isSearching) {
+                    if ($isSearching && empty($row['booking_id'])) {
                         $isAvailable = true;
                     }
+                    
+                    // Determine booking status based on bookings table
+                    $bookingStatus = empty($row['booking_id']) ? 'Unbooked' : 'booked';
                     
                     $carDataJS[] = [
                         'id' => $row['car_id'],
@@ -768,10 +976,20 @@ if (isset($_SESSION["adminEmail"])){
                         'type' => $row['type'],
                         'fuel_type' => $row['fuel_type'],                        
                         'status' => $row['status'],
-                        'booking_status' => $row['booking_status'],
+                        'booking_status' => $bookingStatus,
+                        // Added new fields:
+                        'insurance_issued_date' => $row['insurance_issued_date'] ?? null,
+                        'insurance_expiry_date' => $row['insurance_expiry_date'] ?? null,
+                        'control_issued_date' => $row['control_issued_date'] ?? null,
+                        'control_expiry_date' => $row['control_expiry_date'] ?? null,
+                        // Existing booking fields:
+                        'booking_id' => $row['booking_id'],
                         'booking_date' => $row['booking_date'],
                         'booking_return_date' => $row['booking_return_date'],
                         'booking_amount' => $row['booking_amount'],
+                        'customer_name' => $row['customer_name'],
+                        'customer_national_id' => $row['customer_national_id'],
+                        'customer_phone' => $row['customer_phone'],
                         'is_available_on_search_date' => $isAvailable
                     ];
                 }
@@ -868,7 +1086,7 @@ if (isset($_SESSION["adminEmail"])){
                         <th>Type</th>
                         <th>Fuel</th>
                         <th>Booking Status</th>
-                        <th>Booking Details</th>
+                        <th style="min-width: 200px;">Booking & Customer Details</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -903,80 +1121,95 @@ if (isset($_SESSION["adminEmail"])){
             }
             
             if (currentView === 'internal') {
-                const bookingBadge = car.booking_status === 'booked' 
-                    ? '<span class="booking-indicator booked"><i class="fas fa-calendar-check"></i> BOOKED</span>'
-                    : '<span class="booking-indicator unbooked"><i class="fas fa-calendar-plus"></i> UNBOOKED</span>';
-                
-                let bookingDetails = '-';
-                let cancelButton = '';
-                
-                if (car.booking_status === 'booked' && car.booking_date) {
-                    bookingDetails = `
-                        <div class="booking-info-cell">
-                            <div class="booking-detail">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span class="booking-dates">From: ${formatDate(car.booking_date)}</span>
-                            </div>
-                            <div class="booking-detail">
-                                <i class="fas fa-calendar-check"></i>
-                                <span class="booking-dates">To: ${formatDate(car.booking_return_date)}</span>
-                            </div>
-                            <div class="booking-detail">
-                                <i class="fas fa-money-bill-wave"></i>
-                                <span class="booking-amount">${parseInt(car.booking_amount || 0).toLocaleString()} RWF</span>
-                            </div>
-                        </div>
-                    `;
+                    const bookingBadge = car.booking_status === 'booked' 
+                        ? '<span class="booking-indicator booked"><i class="fas fa-calendar-check"></i> BOOKED</span>'
+                        : '<span class="booking-indicator unbooked"><i class="fas fa-calendar-plus"></i> UNBOOKED</span>';
                     
-                    cancelButton = `
-                        <button type="button" class="enhanced-action-btn cancel-booking-btn" 
-                                title="Cancel Booking" data-toggle="modal"
-                                data-target="#cancelBookingModal" data-id="${car.id}" 
-                                data-name="${car.car_name}"
-                                style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; margin-left: 5px;">
-                            <i class="fas fa-times-circle"></i>
-                        </button>
+                    let bookingDetails = '-';
+                    let cancelButton = '';
+                    
+                    if (car.booking_status === 'booked' && car.booking_date) {
+                        bookingDetails = `
+                            <div class="booking-info-cell">
+                                <div class="booking-detail">
+                                    <i class="fas fa-user"></i>
+                                    <span><strong>${car.customer_name || 'N/A'}</strong></span>
+                                </div>
+                                <div class="booking-detail">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>${car.customer_national_id || 'N/A'}</span>
+                                </div>
+                                <div class="booking-detail">
+                                    <i class="fas fa-phone"></i>
+                                    <span>${car.customer_phone || 'N/A'}</span>
+                                </div>
+                                <hr style="margin: 8px 0; border-color: #e3e6f0;">
+                                <div class="booking-detail">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span class="booking-dates">From: ${formatDate(car.booking_date)}</span>
+                                </div>
+                                <div class="booking-detail">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <span class="booking-dates">To: ${formatDate(car.booking_return_date)}</span>
+                                </div>
+                                <div class="booking-detail">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span class="booking-amount">${parseInt(car.booking_amount || 0).toLocaleString()} RWF</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        cancelButton = `
+                            <button type="button" class="enhanced-action-btn cancel-booking-btn" 
+                                    title="Cancel Booking" data-toggle="modal"
+                                    data-target="#cancelBookingModal" 
+                                    data-booking-id="${car.booking_id}"
+                                    data-car-id="${car.id}" 
+                                    data-name="${car.car_name}"
+                                    style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; margin-left: 5px;">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        `;
+                    }
+                    
+                    const availabilityBadge = searchDate && car.is_available_on_search_date 
+                        ? '<div class="availability-badge"><i class="fas fa-check-circle"></i> Available on Selected Date</div>'
+                        : '';
+                    
+                    row.innerHTML = `
+                        <td>${car.count}</td>
+                        <td>
+                            <strong>${car.car_name}</strong>
+                            ${availabilityBadge}
+                        </td>
+                        <td>${car.category}</td>
+                        <td style="font-size: 14px;"><code>${car.plate_number}</code></td>
+                        <td>${car.type}</td>
+                        <td>${car.fuel_type}</td>
+                        <td>${bookingBadge}</td>
+                        <td>${bookingDetails}</td>
+                        <td class="status-cell">${car.status}</td>
+                        <td style="white-space: nowrap;">
+                            <form action="updateCar.php" method="GET" style="display: inline;">
+                            <input type="hidden" value="${car.id}" name="car_id">
+                            <button title="Edit ✍" type="submit" name="edit" class="enhanced-action-btn" style="background:green; color: white;">
+                                <i class="fas fa-edit"></i></button>
+                            </form>
+                            <button type="button" class="enhanced-action-btn delete-btn" 
+                                    title="⚠ Delete" data-toggle="modal"
+                                    data-target="#deleteModal" data-id="${car.id}" 
+                                    data-name="${car.car_name}"
+                                    style="background:red; color: white;"><i class="fas fa-trash"></i>
+                            </button>
+                            ${cancelButton}
+                        </td>
                     `;
-                }
-                
-                const availabilityBadge = searchDate && car.is_available_on_search_date 
-                    ? '<div class="availability-badge"><i class="fas fa-check-circle"></i> Available on Selected Date</div>'
-                    : '';
-                
-                row.innerHTML = `
-                    <td>${car.count}</td>
-                    <td>
-                        <strong>${car.car_name}</strong>
-                        ${availabilityBadge}
-                    </td>
-                    <td>${car.category}</td>
-                    <td style="font-size: 14px;"><code>${car.plate_number}</code></td>
-                    <td>${car.type}</td>
-                    <td>${car.fuel_type}</td>
-                    <td>${bookingBadge}</td>
-                    <td>${bookingDetails}</td>
-                    <td class="status-cell">${car.status}</td>
-                    <td style="white-space: nowrap;">
-                        <form action="updateCar.php" method="GET" style="display: inline;">
-                           <input type="hidden" value="${car.id}" name="car_id">
-                           <button title="Edit ✍" type="submit" name="edit" class="enhanced-action-btn" style="background:green; color: white;">
-                            <i class="fas fa-edit"></i></button>
-                        </form>
-                        <button type="button" class="enhanced-action-btn delete-btn" 
-                                title="⚠ Delete" data-toggle="modal"
-                                data-target="#deleteModal" data-id="${car.id}" 
-                                data-name="${car.car_name}"
-                                style="background:red; color: white;"><i class="fas fa-trash"></i>
-                        </button>
-                        ${cancelButton}
-                    </td>
-                `;
-            } else {
-                const balance = parseFloat(car.balance || 0);
-                const totalSpending = parseFloat(car.total_spending || 0);
-                let paymentStatus = '';
-                let statusClass = '';
-                let statusIcon = '';
+                } else {
+                    const balance = parseFloat(car.balance || 0);
+                    const totalSpending = parseFloat(car.total_spending || 0);
+                    let paymentStatus = '';
+                    let statusClass = '';
+                    let statusIcon = '';
                 
                 if (balance === 0) {
                     paymentStatus = 'FULLY PAID';
@@ -1323,6 +1556,218 @@ if (isset($_SESSION["adminEmail"])){
                 }
             });
         }
+
+
+        // Function to open car details modal
+function openCarDetailsModal(carData) {
+    const modalContent = document.getElementById('carDetailsContent');
+    
+    // Check if dates are expired or valid
+    const today = new Date();
+    const insuranceExpiry = carData.insurance_expiry_date ? new Date(carData.insurance_expiry_date) : null;
+    const controlExpiry = carData.control_expiry_date ? new Date(carData.control_expiry_date) : null;
+    
+    const insuranceStatus = insuranceExpiry ? (insuranceExpiry < today ? 'date-expired' : 'date-valid') : 'date-highlight';
+    const controlStatus = controlExpiry ? (controlExpiry < today ? 'date-expired' : 'date-valid') : 'date-highlight';
+    
+    // Build booking section if car is booked
+    let bookingSection = '';
+    if (carData.booking_status === 'booked' && carData.booking_date) {
+        bookingSection = `
+            <div class="booking-details-section">
+                <h6><i class="fas fa-calendar-check"></i> Active Booking Information</h6>
+                <div class="car-details-grid">
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-user"></i> Customer Name:</span>
+                        <span class="detail-value">${carData.customer_name || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-id-card"></i> National ID:</span>
+                        <span class="detail-value">${carData.customer_national_id || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-phone"></i> Phone Number:</span>
+                        <span class="detail-value">${carData.customer_phone || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-calendar-alt"></i> Booking Date:</span>
+                        <span class="detail-value">${formatDate(carData.booking_date)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-calendar-check"></i> Return Date:</span>
+                        <span class="detail-value">${formatDate(carData.booking_return_date)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="fas fa-money-bill-wave"></i> Booking Amount:</span>
+                        <span class="detail-value" style="color: #28a745; font-size: 16px;">${parseInt(carData.booking_amount || 0).toLocaleString()} RWF</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    modalContent.innerHTML = `
+        <div style="text-align: center; margin-bottom: 30px;">
+            <i class="fas fa-car" style="font-size: 4rem; color: #667eea; margin-bottom: 15px;"></i>
+            <h3 style="color: #2c3e50; margin-bottom: 5px;">${carData.car_name}</h3>
+            <p style="color: #6c757d; font-size: 18px;"><code>${carData.plate_number}</code></p>
+        </div>
+
+        <div class="car-details-grid">
+            <!-- Basic Information Card -->
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-info-circle"></i> Basic Information
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-hashtag"></i> Car ID:</span>
+                    <span class="detail-value">#${carData.id}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-tag"></i> Category:</span>
+                    <span class="detail-value">${carData.category}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-car-side"></i> Type:</span>
+                    <span class="detail-value">${carData.type}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-gas-pump"></i> Fuel Type:</span>
+                    <span class="detail-value">${carData.fuel_type}</span>
+                </div>
+            </div>
+
+            <!-- Status Information Card -->
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-signal"></i> Status Information
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-toggle-on"></i> Car Status:</span>
+                    <span class="detail-value">
+                        <span class="status-badge ${carData.status.toLowerCase() === 'available' ? 'status-available' : 'status-rented'}">
+                            ${carData.status}
+                        </span>
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-calendar-alt"></i> Booking Status:</span>
+                    <span class="detail-value">
+                        <span class="status-badge ${carData.booking_status === 'booked' ? 'booking-status-booked' : 'booking-status-unbooked'}">
+                            ${carData.booking_status === 'booked' ? 'BOOKED' : 'UNBOOKED'}
+                        </span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Insurance Details Card -->
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-shield-alt"></i> Insurance Details
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-calendar-plus"></i> Issued Date:</span>
+                    <span class="detail-value ${insuranceStatus}">
+                        ${carData.insurance_issued_date ? formatDate(carData.insurance_issued_date) : 'Not Available'}
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-calendar-times"></i> Expiry Date:</span>
+                    <span class="detail-value ${insuranceStatus}">
+                        ${carData.insurance_expiry_date ? formatDate(carData.insurance_expiry_date) : 'Not Available'}
+                        ${insuranceExpiry && insuranceExpiry < today ? ' <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>' : ''}
+                    </span>
+                </div>
+                ${insuranceExpiry ? `
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-hourglass-half"></i> Days Until Expiry:</span>
+                    <span class="detail-value">
+                        ${Math.ceil((insuranceExpiry - today) / (1000 * 60 * 60 * 24))} days
+                    </span>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- Control/Technical Inspection Card -->
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-clipboard-check"></i> Technical Control
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-calendar-plus"></i> Issued Date:</span>
+                    <span class="detail-value ${controlStatus}">
+                        ${carData.control_issued_date ? formatDate(carData.control_issued_date) : 'Not Available'}
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-calendar-times"></i> Expiry Date:</span>
+                    <span class="detail-value ${controlStatus}">
+                        ${carData.control_expiry_date ? formatDate(carData.control_expiry_date) : 'Not Available'}
+                        ${controlExpiry && controlExpiry < today ? ' <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>' : ''}
+                    </span>
+                </div>
+                ${controlExpiry ? `
+                <div class="detail-item">
+                    <span class="detail-label"><i class="fas fa-hourglass-half"></i> Days Until Expiry:</span>
+                    <span class="detail-value">
+                        ${Math.ceil((controlExpiry - today) / (1000 * 60 * 60 * 24))} days
+                    </span>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+
+        ${bookingSection}
+
+        <div style="margin-top: 25px; padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; text-align: center;">
+            <p style="margin: 0; color: #6c757d; font-size: 14px;">
+                <i class="fas fa-clock"></i> Record generated on ${new Date().toLocaleString('en-US', { 
+                    dateStyle: 'full', 
+                    timeStyle: 'short' 
+                })}
+            </p>
+        </div>
+    `;
+    
+    $('#carDetailsModal').modal('show');
+}
+
+// Function to print car details
+function printCarDetails() {
+    window.print();
+}
+
+// Update the createTableRow function to add click event on rows
+// Add this after the existing row creation code in your createTableRow function
+
+// Modify your existing JavaScript to make rows clickable
+$(document).ready(function() {
+    // Existing code...
+    
+    // Add click event to table rows (delegate to handle dynamically created rows)
+    $(document).on('click', '#enhancedTableBody tr.car-row', function(e) {
+        // Don't trigger modal if clicking on buttons or form elements
+        if ($(e.target).closest('button, form, .enhanced-action-btn').length) {
+            return;
+        }
+        
+        const rowIndex = $(this).index();
+        const currentData = currentView === 'internal' ? internalCarsData : externalCarsData;
+        const carData = currentData[rowIndex];
+        
+        if (carData) {
+            openCarDetailsModal(carData);
+        }
+    });
+    
+    // Add hover effect hint
+    $('#enhancedTableBody').on('mouseenter', 'tr.car-row', function() {
+        if (!$(this).hasClass('clickable-row')) {
+            $(this).addClass('clickable-row');
+        }
+    });
+});
+
     </script>
 </body>
 </html>

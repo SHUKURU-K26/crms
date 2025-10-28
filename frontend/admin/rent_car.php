@@ -86,31 +86,63 @@ if (isset($_SESSION["adminEmail"])){
 
                                 <h4 class="mt-5 mb-3" style="color: dodgerblue;">Vehicle Details </h4>
                                 <hr />
+
                                 <div class="mb-3">
                                     <label for="car_name" class="form-label">Car Name</label>
                                     <select name="car_id" id="car_name" class="form-control">
                                         <option value="">-- Select Car Name --</option>
                                         <?php 
                                         include "../../web_db/connection.php";
-                                        $sql="SELECT * FROM cars WHERE status != 'rented'";
+                                        $today = date('Y-m-d');
+                                        
+                                        // Get cars with their active bookings (if any)
+                                        $sql = "SELECT c.*, 
+                                                b.booking_id,
+                                                b.booking_date,
+                                                b.booking_return_date,
+                                                b.customer_name,
+                                                b.customer_national_id,
+                                                b.customer_phone,
+                                                b.booking_amount
+                                                FROM cars c
+                                                LEFT JOIN bookings b ON c.car_id = b.car_id 
+                                                AND b.booking_status IN ('pending', 'active')
+                                                WHERE c.status != 'rented'
+                                                ORDER BY c.car_name ASC";
+                                        
                                         $result = mysqli_query($conn, $sql);
                                         $categories_exist = mysqli_num_rows($result) > 0;                                
+                                        
                                         if ($categories_exist): 
-                                            while ($row = mysqli_fetch_assoc($result)) : ?>
+                                            while ($row = mysqli_fetch_assoc($result)) : 
+                                                $hasBooking = !empty($row['booking_id']);
+                                                $bookingDate = $row['booking_date'];
+                                                $bookingReturnDate = $row['booking_return_date'];
+                                                $customerName = $row['customer_name'];
+                                                $customerNationalId = $row['customer_national_id'];
+                                                $customerPhone = $row['customer_phone'];
+                                                $bookingAmount = $row['booking_amount'];
+                                                ?>
                                                 <option value="<?= $row['car_id']; ?>" 
-                                                    data-booking-status="<?= $row['booking_status']; ?>"
-                                                    data-booking-date="<?= $row['booking_date']; ?>">
+                                                    data-has-booking="<?= $hasBooking ? 'yes' : 'no'; ?>"
+                                                    data-booking-date="<?= $bookingDate ?? ''; ?>"
+                                                    data-booking-return="<?= $bookingReturnDate ?? ''; ?>"
+                                                    data-customer-name="<?= $customerName ?? ''; ?>"
+                                                    data-customer-national-id="<?= $customerNationalId ?? ''; ?>"
+                                                    data-customer-phone="<?= $customerPhone ?? ''; ?>"
+                                                    data-booking-amount="<?= $bookingAmount ?? '0'; ?>">
                                                     <?= htmlspecialchars($row['car_name'] . " / Plate: " . $row["plate_number"]);?>
-                                                    <?php if ($row['booking_status'] == 'booked'): ?>
-                                                        [⚠️ Booked for <?= date('M d, Y', strtotime($row['booking_date'])); ?>]
+                                                    <?php if ($hasBooking && $bookingDate): ?>
+                                                        [⚠️ Booked from <?= date('M d', strtotime($bookingDate)); ?> to <?= date('M d, Y', strtotime($bookingReturnDate)); ?>]
                                                     <?php endif; ?>
                                                 </option>
                                             <?php endwhile; 
-                                        else: ?>
+                                             else: 
+                                            ?>
                                             <option value="" disabled selected>⚠ No Car Found. Please Register</option>
                                         <?php endif;?>
                                     </select>  
-                                </div>  
+                                </div>
 
                                 <div id="rental-form-section" style="display: none;">
                                     <h4 class="mt-5 mb-3" style="color: dodgerblue;">Rent Length: </h4>
@@ -409,56 +441,188 @@ if (isset($_SESSION["adminEmail"])){
 
     // Internal Form - Show rental section and booking restrictions
     document.addEventListener("DOMContentLoaded", function () {
-        const carSelect = document.getElementById('car_name');
-        const rentSection = document.getElementById('rental-form-section');
-        const returnDateInput = document.getElementById('return-date');
-        const rentDateInput = document.getElementById('rent-date');
-        const bookingRestrictionDisplay = document.getElementById('booking-restriction-display');
+            const carSelect = document.getElementById('car_name');
+            const rentSection = document.getElementById('rental-form-section');
+            const returnDateInput = document.getElementById('return-date');
+            const rentDateInput = document.getElementById('rent-date');
+            const bookingRestrictionDisplay = document.getElementById('booking-restriction-display');
+            
+            // Customer fields
+            const renterNameInput = document.getElementById('internal_renter_name');
+            const phoneInput = document.getElementById('internal_phone');
+            const nationalIdInput = document.getElementById('internal_national_id');
+            
+            // Get today's date in YYYY-MM-DD format
+            const today = new Date().toISOString().split('T')[0];
 
-        carSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-            const selectedValue = this.value;
+            carSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const selectedValue = this.value;
 
-            if (selectedValue !== "") {
-                rentSection.style.display = "block";
-                
-                const bookingStatus = selectedOption.getAttribute('data-booking-status');
-                const bookingDate = selectedOption.getAttribute('data-booking-date');
-                
-                if (bookingStatus === 'booked' && bookingDate && bookingDate !== '') {
-                    const bookingDateObj = new Date(bookingDate);
-                    const dayBeforeBooking = new Date(bookingDateObj);
-                    dayBeforeBooking.setDate(bookingDateObj.getDate() - 1);
+                if (selectedValue !== "") {
+                    rentSection.style.display = "block";
                     
-                    const maxReturnDate = dayBeforeBooking.toISOString().split('T')[0];
-                    returnDateInput.setAttribute('max', maxReturnDate);
+                    const hasBooking = selectedOption.getAttribute('data-has-booking');
+                    const bookingDate = selectedOption.getAttribute('data-booking-date');
+                    const bookingReturnDate = selectedOption.getAttribute('data-booking-return');
+                    const customerName = selectedOption.getAttribute('data-customer-name');
+                    const customerNationalId = selectedOption.getAttribute('data-customer-national-id');
+                    const customerPhone = selectedOption.getAttribute('data-customer-phone');
+                    const bookingAmount = selectedOption.getAttribute('data-booking-amount');
                     
-                    const formattedBookingDate = bookingDateObj.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    });
-                    const formattedMaxDate = dayBeforeBooking.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    });
+                    // ✨ AUTO-POPULATE CUSTOMER DATA IF BOOKING DATE IS TODAY
+                    if (hasBooking === 'yes' && bookingDate === today) {
+                        // Fill customer fields and make them readonly
+                        if (customerName) {
+                            renterNameInput.value = customerName;
+                            renterNameInput.setAttribute('readonly', 'readonly');
+                            renterNameInput.style.backgroundColor = '#e9ecef';
+                            renterNameInput.style.cursor = 'not-allowed';
+                        }
+                        
+                        if (customerNationalId) {
+                            nationalIdInput.value = customerNationalId;
+                            nationalIdInput.setAttribute('readonly', 'readonly');
+                            nationalIdInput.style.backgroundColor = '#e9ecef';
+                            nationalIdInput.style.cursor = 'not-allowed';
+                        }
+                        
+                        if (customerPhone) {
+                            phoneInput.value = customerPhone;
+                            phoneInput.setAttribute('readonly', 'readonly');
+                            phoneInput.style.backgroundColor = '#e9ecef';
+                            phoneInput.style.cursor = 'not-allowed';
+                        }
+                        
+                        // Show info message about auto-populated data
+                        const infoMessage = document.createElement('div');
+                        infoMessage.id = 'booking-auto-fill-info';
+                        infoMessage.className = 'alert alert-success';
+                        infoMessage.style.marginTop = '15px';
+                        infoMessage.innerHTML = `
+                            <i class="fas fa-check-circle"></i> <strong>Booking Data Auto-Filled!</strong><br>
+                            This customer has a booking starting today. Their information has been automatically populated.<br>
+                            <strong>Booking Amount Paid:</strong> ${parseInt(bookingAmount || 0).toLocaleString()} RWF
+                        `;
+                        
+                        // Remove existing info message if any
+                        const existingInfo = document.getElementById('booking-auto-fill-info');
+                        if (existingInfo) existingInfo.remove();
+                        
+                        // Insert after the ID field
+                        nationalIdInput.parentElement.parentElement.insertAdjacentElement('afterend', infoMessage);
+                        
+                    } else {
+                        // Clear and enable fields if not booking today
+                        renterNameInput.value = '';
+                        renterNameInput.removeAttribute('readonly');
+                        renterNameInput.style.backgroundColor = '';
+                        renterNameInput.style.cursor = '';
+                        
+                        nationalIdInput.value = '';
+                        nationalIdInput.removeAttribute('readonly');
+                        nationalIdInput.style.backgroundColor = '';
+                        nationalIdInput.style.cursor = '';
+                        
+                        phoneInput.value = '';
+                        phoneInput.removeAttribute('readonly');
+                        phoneInput.style.backgroundColor = '';
+                        phoneInput.style.cursor = '';
+                        
+                        // Remove info message
+                        const existingInfo = document.getElementById('booking-auto-fill-info');
+                        if (existingInfo) existingInfo.remove();
+                    }
                     
-                    bookingRestrictionDisplay.innerHTML = `<br>⚠️ This car is booked for ${formattedBookingDate}. Must return by ${formattedMaxDate}`;
-                    bookingRestrictionDisplay.style.display = 'inline';
+                    if (hasBooking === 'yes' && bookingDate && bookingDate !== '') {
+                        // Calculate the day before booking starts
+                        const bookingDateObj = new Date(bookingDate);
+                        const dayBeforeBooking = new Date(bookingDateObj);
+                        dayBeforeBooking.setDate(bookingDateObj.getDate() - 1);
+                        
+                        const maxRentReturnDate = dayBeforeBooking.toISOString().split('T')[0];
+                        
+                        // ⚠️ RESTRICT BOTH RENT DATE AND RETURN DATE
+                        rentDateInput.setAttribute('max', maxRentReturnDate);
+                        returnDateInput.setAttribute('max', maxRentReturnDate);
+                        
+                        // Format dates for display
+                        const formattedBookingDate = bookingDateObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        
+                        const bookingReturnObj = new Date(bookingReturnDate);
+                        const formattedReturnDate = bookingReturnObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        
+                        const formattedMaxDate = dayBeforeBooking.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        
+                        bookingRestrictionDisplay.innerHTML = `<br>⚠️ This car has a booking from ${formattedBookingDate} to ${formattedReturnDate}${customerName ? ' (Customer: ' + customerName + ')' : ''}. <br>Rental must start AND end by ${formattedMaxDate}`;
+                        bookingRestrictionDisplay.style.display = 'inline';
+                    } else {
+                        // No booking restriction - remove max limits
+                        rentDateInput.removeAttribute('max');
+                        returnDateInput.removeAttribute('max');
+                        bookingRestrictionDisplay.textContent = '';
+                        bookingRestrictionDisplay.style.display = 'none';
+                    }
                 } else {
+                    rentSection.style.display = "none";
+                    rentDateInput.removeAttribute('max');
                     returnDateInput.removeAttribute('max');
                     bookingRestrictionDisplay.textContent = '';
                     bookingRestrictionDisplay.style.display = 'none';
+                    
+                    // Clear customer fields
+                    renterNameInput.value = '';
+                    renterNameInput.removeAttribute('readonly');
+                    renterNameInput.style.backgroundColor = '';
+                    phoneInput.value = '';
+                    phoneInput.removeAttribute('readonly');
+                    phoneInput.style.backgroundColor = '';
+                    nationalIdInput.value = '';
+                    nationalIdInput.removeAttribute('readonly');
+                    nationalIdInput.style.backgroundColor = '';
+                    
+                    // Remove info message
+                    const existingInfo = document.getElementById('booking-auto-fill-info');
+                    if (existingInfo) existingInfo.remove();
                 }
-            } else {
-                rentSection.style.display = "none";
-                returnDateInput.removeAttribute('max');
-                bookingRestrictionDisplay.textContent = '';
-                bookingRestrictionDisplay.style.display = 'none';
-            }
-        });
+            });
+            
+            // Add validation when rent date is changed
+            rentDateInput.addEventListener('change', function() {
+                const selectedOption = carSelect.options[carSelect.selectedIndex];
+                const hasBooking = selectedOption.getAttribute('data-has-booking');
+                const bookingDate = selectedOption.getAttribute('data-booking-date');
+                
+                if (hasBooking === 'yes' && bookingDate) {
+                    const rentDate = new Date(this.value);
+                    const bookingDateObj = new Date(bookingDate);
+                    
+                    // Prevent rent date on or after booking date
+                    if (rentDate >= bookingDateObj) {
+                        const dayBefore = new Date(bookingDateObj);
+                        dayBefore.setDate(bookingDateObj.getDate() - 1);
+                        const maxDate = dayBefore.toISOString().split('T')[0];
+                        
+                        alert(`⚠️ Invalid Rent Date!\n\nThis car is booked starting ${bookingDateObj.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'})}.\n\nYou cannot rent it on or after that date.\nMaximum rent date: ${dayBefore.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'})}`);
+                        
+                        this.value = maxDate;
+                    }
+                }
+            });
     });
+
 
     // External Form - Show rental section and expected return date restrictions
     document.addEventListener("DOMContentLoaded", function () {
@@ -515,22 +679,31 @@ if (isset($_SESSION["adminEmail"])){
                 const returnDate = new Date(returnDateInput.value);
                 const pricePerDay = parseFloat(pricePerDayInput.value) || 0;
                 
+                // Check if return date exceeds booking restriction
                 const maxReturnDate = returnDateInput.getAttribute('max');
                 if (maxReturnDate && returnDate > new Date(maxReturnDate)) {
                     const selectedOption = carSelect.options[carSelect.selectedIndex];
                     const bookingDate = selectedOption.getAttribute('data-booking-date');
+                    const bookingReturnDate = selectedOption.getAttribute('data-booking-return');
+                    const customerName = selectedOption.getAttribute('data-customer-name');
+                    
                     const formattedMaxDate = new Date(maxReturnDate).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                     });
-                    const formattedBookingDate = new Date(bookingDate).toLocaleDateString('en-US', {
+                    const formattedBookingStart = new Date(bookingDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                    const formattedBookingEnd = new Date(bookingReturnDate).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                     });
                     
-                    alert(`⚠️ Invalid Return Date!\n\nThis car is booked for ${formattedBookingDate}.\nYou must return it by ${formattedMaxDate} (one day before the booking date).\n\nPlease select an earlier return date.`);
+                    alert(`⚠️ Invalid Return Date!\n\nThis car has a booking from ${formattedBookingStart} to ${formattedBookingEnd}${customerName ? '\nCustomer: ' + customerName : ''}.\n\nYou must return it by ${formattedMaxDate} (one day before the booking starts).\n\nPlease select an earlier return date.`);
                     returnDateInput.value = maxReturnDate;
                     return;
                 }
@@ -539,6 +712,7 @@ if (isset($_SESSION["adminEmail"])){
                     const timeDiff = returnDate - rentDate;
                     let dayDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
                     
+                    // Calculate total days (include both start and end date)
                     let totalDays = dayDiff === 0 ? 1 : dayDiff + 1;
                     
                     daysOfRentInput.value = totalDays;
@@ -554,6 +728,7 @@ if (isset($_SESSION["adminEmail"])){
                     totalFeeInput.value = "—";
                 }
             }
+
 
             price.addEventListener("input", () => {
                 pricePerDayInput.value = price.value;
@@ -894,7 +1069,39 @@ if (isset($_SESSION["adminEmail"])){
             }
         });
     });
-    </script>
+
+// Prevent form submission if rent/return date conflicts with booking
+document.getElementById('internal_car_rentalForm').addEventListener('submit', function(e) {
+    const carSelect = document.getElementById('car_name');
+    const rentDateInput = document.getElementById('rent-date');
+    const returnDateInput = document.getElementById('return-date');
+    const selectedOption = carSelect.options[carSelect.selectedIndex];
+    
+    const hasBooking = selectedOption.getAttribute('data-has-booking');
+    const bookingDate = selectedOption.getAttribute('data-booking-date');
+    
+    if (hasBooking === 'yes' && bookingDate) {
+        const rentDate = new Date(rentDateInput.value);
+        const returnDate = new Date(returnDateInput.value);
+        const bookingDateObj = new Date(bookingDate);
+        
+        // Check if RENT DATE is on or after booking date
+        if (rentDate >= bookingDateObj) {
+            e.preventDefault();
+            alert('⚠️ Cannot complete rental!\n\nThe rent date conflicts with an existing booking for this car.\n\nThis car is booked starting ' + bookingDateObj.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'}) + '.\n\nPlease choose an earlier rent date.');
+            return false;
+        }
+        
+        // Check if RETURN DATE is on or after booking date
+        if (returnDate >= bookingDateObj) {
+            e.preventDefault();
+            alert('⚠️ Cannot complete rental!\n\nThe return date conflicts with an existing booking for this car.\n\nPlease choose an earlier return date.');
+            return false;
+        }
+    }
+});
+
+</script>
 </body>
 </html>
 <?php

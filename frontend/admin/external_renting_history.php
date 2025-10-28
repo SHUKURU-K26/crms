@@ -47,21 +47,21 @@ if (isset($_SESSION["adminEmail"])){
         <?php
          include "../../web_includes/menu.php";
          ?>
-         
+
         <!-- End of Sidebar -->
 
         <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
-            
+
             <!-- Main Content -->
             <div id="content">
-                        
+
                 <!-- Topbar -->
                 <?php
                   include "../../web_includes/topbar.php";
                 ?>
                 <!-- End of Topbar -->
-                
+
                 <!-- Begin Page Content -->
                 <div class="container-fluid">
                     <div style="display: flex;justify-content:space-between;">
@@ -79,22 +79,22 @@ if (isset($_SESSION["adminEmail"])){
                     <div class="card-header py-3">
                         <h6 class="m-0 font-weight-bold text-primary">Rental History Dynamic Data</h6>
                     </div>
-                    <div class="card-body" >                                            
+                    <div class="card-body" >
                         <div class="table-responsive" >
-                            
+
                                 <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0" >
                                     <thead>
-                                        <tr>                                            
+                                        <tr>
                                             <th>N#</th>
                                             <th style="min-width: 90px;">Renter</th>
                                             <th style="min-width: 100px;">Mobile</th>
                                             <th style="min-width: 100px;">National ID</th>
                                             <th style="min-width: 100px;">Car Name</th>
                                             <th style="min-width: 70px;">Plate</th>
-                                            <th style="min-width: 80px;">Rent Date</th>                                            
-                                            <th style="min-width: 50px;">Rented Days</th>                                             
-                                            <th style="min-width: 100px;">Negotiated Fee</th>   
-                                            <th style="min-width: 50px;">Provider</th>                                                                              
+                                            <th style="min-width: 80px;">Rent Date</th>
+                                            <th style="min-width: 50px;">Rented Days</th>
+                                            <th style="min-width: 100px;">N/Fee</th>
+                                            <th style="min-width: 50px;">Provider</th>
                                         </tr>
 
                                     </thead>
@@ -107,9 +107,18 @@ if (isset($_SESSION["adminEmail"])){
                                                 $count = 0;
                                                 while ($row= $result->fetch_assoc()){
                                                     $count++;
-                                                ?>                                       
-                                                <tr>                                            
-                                                    <td><?php echo $count?></td>                                                    
+                                                ?>
+                                                <tr style="cursor: pointer;" class="rental-row"
+                                                    data-renter="<?php echo htmlspecialchars($row['renter_names'])?>"
+                                                    data-phone="<?php echo htmlspecialchars($row['phone'])?>"
+                                                    data-id="<?php echo htmlspecialchars($row['id_number'])?>"
+                                                    data-car="<?php echo htmlspecialchars($row['car_name'])?>"
+                                                    data-plate="<?php echo htmlspecialchars($row['plate'])?>"
+                                                    data-rentdate="<?php echo htmlspecialchars($row['rent_date'])?>"
+                                                    data-duration="<?php echo htmlspecialchars($row['duration'])?>"
+                                                    data-amount="<?php echo htmlspecialchars($row['rent_amount'])?>"
+                                                    data-provider="<?php echo htmlspecialchars($row['rented_by'])?>">
+                                                    <td><?php echo $count?></td>
                                                     <td><?php echo $row["renter_names"]?></td>
                                                     <td><?php echo $row["phone"]?></td>
                                                     <td><?php echo $row["id_number"]?></td>
@@ -118,13 +127,13 @@ if (isset($_SESSION["adminEmail"])){
                                                     <td><?php echo $row["rent_date"]?></td>
                                                     <td><?php echo $row["duration"]." Days"?></td>
                                                     <td style="color: green:"><?php echo $row["rent_amount"]." FRW"?></td>
-                                                    <td><?php echo $row["rented_by"]?></td>                                                                               
+                                                    <td><?php echo $row["rented_by"]?></td>
                                                 </tr>
-                                                                                               
-                                            <?php 
+
+                                            <?php
                                                 }
-                                            } 
-                                            ?> 
+                                            }
+                                            ?>
                                     </tbody>
 
                                 </table>
@@ -133,7 +142,7 @@ if (isset($_SESSION["adminEmail"])){
                     </div>
 
                 </div>
-                                        
+
                 <!-- /.container-fluid -->
 
             </div>
@@ -155,7 +164,7 @@ if (isset($_SESSION["adminEmail"])){
     <a class="scroll-to-top rounded" href="#page-top">
         <i class="fas fa-angle-up"></i>
     </a>
-    
+
     <!-- Logout Modal-->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
         aria-hidden="true">
@@ -186,6 +195,63 @@ if (isset($_SESSION["adminEmail"])){
         </div>
     </div>
 
+    <!-- Rental Details Modal-->
+    <div class="modal fade" id="rentalDetailsModal" tabindex="-1" role="dialog" aria-labelledby="rentalDetailsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: dodgerblue; color: white;">
+                    <h5 class="modal-title" id="rentalDetailsModalLabel">
+                        <i class="fas fa-car"></i> Rental Record Details
+                    </h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close" style="color: white;">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="container-fluid">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold text-primary">Renter Information</h6>
+                                <hr>
+                                <p><strong>Full Name:</strong> <span id="modal-renter"></span></p>
+                                <p><strong>Mobile Number:</strong> <span id="modal-phone"></span></p>
+                                <p><strong>National ID:</strong> <span id="modal-id"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold text-primary">Vehicle Information</h6>
+                                <hr>
+                                <p><strong>Car Name:</strong> <span id="modal-car"></span></p>
+                                <p><strong>Plate Number:</strong> <span id="modal-plate"></span></p>
+                                <p><strong>Provider:</strong> <span id="modal-provider"></span></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h6 class="font-weight-bold text-primary">Rental Details</h6>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <p><strong>Rent Date:</strong> <span id="modal-rentdate"></span></p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Duration:</strong> <span id="modal-duration"></span> Days</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p><strong>Rental Fee:</strong> <span id="modal-amount" style="color: green; font-weight: bold;"></span> FRW</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap core JavaScript-->
     <script src="../../vendor/jquery/jquery.min.js"></script>
     <script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -204,7 +270,25 @@ if (isset($_SESSION["adminEmail"])){
     <script src="../../js/mycustomjs.js"></script>
 
     <!-- Page level custom scripts -->
-    <script src="../../js/demo/datatables-demo.js"></script>   
+    <script src="../../js/demo/datatables-demo.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('.rental-row').on('click', function() {
+                $('#modal-renter').text($(this).data('renter'));
+                $('#modal-phone').text($(this).data('phone'));
+                $('#modal-id').text($(this).data('id'));
+                $('#modal-car').text($(this).data('car'));
+                $('#modal-plate').text($(this).data('plate'));
+                $('#modal-rentdate').text($(this).data('rentdate'));
+                $('#modal-duration').text($(this).data('duration'));
+                $('#modal-amount').text($(this).data('amount'));
+                $('#modal-provider').text($(this).data('provider'));
+
+                $('#rentalDetailsModal').modal('show');
+            });
+        });
+    </script>
 </body>
 </html>
 <?php

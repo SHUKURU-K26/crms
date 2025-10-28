@@ -30,13 +30,20 @@ if (isset($_SESSION["adminEmail"])){
                 }
                 
                 else{
-                    $stmt=$conn->prepare("INSERT INTO cars VALUES('', ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, CURDATE()) ");
-                    $stmt->bind_param("sssssssss", $Car_name, $category, $PlateNumber, $CarType, $fuel_type, $insurance_Issued_date, $insurance_expiry_date,
-                    $control_issued_date, $control_expiry_date);
-                    $stmt->execute(); 
-                    if ($stmt) {
+                    $stmt = $conn->prepare("INSERT INTO cars (car_name, category_id, plate_number, type, fuel_type, status, 
+                    insurance_issued_date, insurance_expiry_date, control_issued_date, control_expiry_date, booking_status) 
+                    VALUES (?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, 'unbooked')");
+                    
+                    // 9 parameters: sisssssss (i for integer category_id, rest are strings)
+                    $stmt->bind_param("sisssssss", $Car_name, $category, $PlateNumber, $CarType, $fuel_type, 
+                                      $insurance_Issued_date, $insurance_expiry_date,
+                                      $control_issued_date, $control_expiry_date);
+                    
+                    if ($stmt->execute()) {
                         include "../../system_messages/newCarMessage.php";
                         $stmt->close();
+                    } else {
+                        echo "<div class='alert alert-danger'>Error: " . $stmt->error . "</div>";
                     }
                 }
     }

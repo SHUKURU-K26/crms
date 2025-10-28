@@ -6,6 +6,9 @@ include "../../web_db/connection.php";
 // Handle booking submission
 if (isset($_POST['book_car'])){
     $car_id = mysqli_real_escape_string($conn, $_POST["car_id"]) ?? '';
+    $customer_name = mysqli_real_escape_string($conn, $_POST["customer_name"]) ?? '';
+    $customer_national_id = mysqli_real_escape_string($conn, $_POST["customer_national_id"]) ?? '';
+    $customer_phone = mysqli_real_escape_string($conn, $_POST["customer_phone"]) ?? '';
     $booking_date = mysqli_real_escape_string($conn, $_POST["booking_date"]) ?? '';
     $booking_return_date = mysqli_real_escape_string($conn, $_POST["booking_return_date"]) ?? '';
     $booking_amount = mysqli_real_escape_string($conn, $_POST["booking_amount"]) ?? '';
@@ -18,31 +21,52 @@ if (isset($_POST['book_car'])){
         echo "<div id='deleteSuccessBox'>Error: Return date must be after booking date!</div>";
     } elseif (empty($car_id)) {
         echo "<div id='deleteSuccessBox'>Error: Please select a car to book!</div>";
+    } elseif (empty($customer_name) || empty($customer_national_id) || empty($customer_phone)) {
+        echo "<div id='deleteSuccessBox'>Error: Please fill in all customer information!</div>";
     } else {
-        // Update car with booking information
-        $updateSql = "UPDATE cars SET 
-                      booking_status='booked', 
-                      booking_date='$booking_date', 
-                      booking_return_date='$booking_return_date', 
-                      booking_amount='$booking_amount'
-                      WHERE car_id='$car_id'";
+        // Check if car is already booked for these dates
+        $checkQuery = "SELECT * FROM bookings 
+                       WHERE car_id='$car_id' 
+                       AND booking_status IN ('pending', 'active')
+                       AND (
+                           (booking_date <= '$booking_date' AND booking_return_date >= '$booking_date')
+                           OR (booking_date <= '$booking_return_date' AND booking_return_date >= '$booking_return_date')
+                           OR (booking_date >= '$booking_date' AND booking_return_date <= '$booking_return_date')
+                       )";
+        $checkResult = $conn->query($checkQuery);
         
-        if ($conn->query($updateSql) === TRUE) {
-            echo "<div id='successBox'>Car booked successfully! Booking Reference: #CAR-" . str_pad($car_id, 4, '0', STR_PAD_LEFT) . "</div>";
-            echo"<script>
-                    setTimeout(function() {
-                        window.location.href = 'car_overview.php';
-                    }, 2000);
-                 </script>";
+        if ($checkResult->num_rows > 0) {
+            echo "<div id='deleteSuccessBox'>Error: This car is already booked for the selected dates!</div>";
         } else {
-            echo "<div id='deleteSuccessBox'>Error booking car: " . $conn->error . "</div>";
+            // Insert booking into bookings table
+            $insertSql = "INSERT INTO bookings (car_id, customer_name, customer_national_id, customer_phone, 
+                          booking_date, booking_return_date, booking_amount, booking_status) 
+                          VALUES ('$car_id', '$customer_name', '$customer_national_id', '$customer_phone',
+                          '$booking_date', '$booking_return_date', '$booking_amount', 'pending')";
+            
+            if ($conn->query($insertSql) === TRUE) {
+                $booking_id = $conn->insert_id;
+                
+                // Update car status to indicate it's booked
+                $updateCarSql = "UPDATE cars SET booking_status='booked' WHERE car_id='$car_id'";
+                $conn->query($updateCarSql);
+                
+                echo "<div id='successBox'>Booking created successfully! Reference: #BOOK-" . str_pad($booking_id, 4, '0', STR_PAD_LEFT) . "</div>";
+                echo"<script>
+                        setTimeout(function() {
+                            window.location.href = 'car_overview.php';
+                        }, 2000);
+                     </script>";
+            } else {
+                echo "<div id='deleteSuccessBox'>Error creating booking: " . $conn->error . "</div>";
+            }
         }
     }
 }
 
 // Fetch available cars for booking
 $carsQuery = "SELECT * FROM cars 
-              WHERE booking_status='Unbooked' AND status='available'
+              WHERE status='available'
               ORDER BY car_name ASC";
 $availableCars = $conn->query($carsQuery);
 
@@ -126,6 +150,7 @@ if (isset($_SESSION["adminEmail"])){
             border-radius: 8px;
             border: 2px solid #e3e6f0;
             margin-top: 15px;
+            margin-bottom: 15px;
             display: none;
         }
         
@@ -160,6 +185,19 @@ if (isset($_SESSION["adminEmail"])){
         
         select.form-control {
             cursor: pointer;
+        }
+        
+        .section-divider {
+            border-top: 2px solid #e3e6f0;
+            margin: 25px 0;
+            padding-top: 20px;
+        }
+        
+        .section-title {
+            color: #970000;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 18px;
         }
     </style>
 </head>
@@ -205,10 +243,15 @@ if (isset($_SESSION["adminEmail"])){
                             <div class="card">
                                 <div class="card-body">
                                     <div class="info-badge">
-                                        <i class="fas fa-lightbulb"></i> <strong>Note:</strong> Select an available car and set the booking dates. All fields are required.
+                                        <i class="fas fa-lightbulb"></i> <strong>Note:</strong> Select an available car, enter customer details, and set the booking dates. All fields are required.
                                     </div>
                                     
                                     <form class="form-horizontal form-material" id="bookingForm" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"])?>" method="POST">
+                                        
+                                        <!-- CAR SELECTION SECTION -->
+                                        <div class="section-title">
+                                            <i class="fas fa-car"></i> Vehicle Selection
+                                        </div>
                                         
                                         <div class="form-group">
                                             <label class="col-md-12"><i class="fas fa-car"></i> Select Car</label>
@@ -253,6 +296,47 @@ if (isset($_SESSION["adminEmail"])){
                                             </div>
                                         </div>
 
+                                        <!-- CUSTOMER INFORMATION SECTION -->
+                                        <div class="section-divider">
+                                            <div class="section-title">
+                                                <i class="fas fa-user"></i> Customer Information
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="col-md-12"><i class="fas fa-user"></i> Customer Name <span style="color: red;">*</span></label>
+                                            <div class="col-md-12">
+                                                <input type="text" class="form-control form-control-line" id="customer_name" name="customer_name" 
+                                                       placeholder="Enter customer full name" required>
+                                                <small class="form-text text-muted">Enter the full name of the customer</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="col-md-12"><i class="fas fa-id-card"></i> National ID <span style="color: red;">*</span></label>
+                                            <div class="col-md-12">
+                                                <input type="text" class="form-control form-control-line" id="customer_national_id" name="customer_national_id" 
+                                                       placeholder="Enter national ID number" required maxlength="16">
+                                                <small class="form-text text-muted">Enter the customer's national ID or passport number</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="col-md-12"><i class="fas fa-phone"></i> Phone Number <span style="color: red;">*</span></label>
+                                            <div class="col-md-12">
+                                                <input type="tel" class="form-control form-control-line" id="customer_phone" name="customer_phone" 
+                                                       placeholder="Enter phone number (e.g., 0781234567)" required pattern="[0-9]{10,15}">
+                                                <small class="form-text text-muted">Enter a valid phone number (10-15 digits)</small>
+                                            </div>
+                                        </div>
+
+                                        <!-- BOOKING DETAILS SECTION -->
+                                        <div class="section-divider">
+                                            <div class="section-title">
+                                                <i class="fas fa-calendar-alt"></i> Booking Details
+                                            </div>
+                                        </div>
+
                                         <div class="form-group">
                                             <label class="col-md-12"><i class="fas fa-calendar-alt"></i> Booking Date (Pick-up)</label>
                                             <div class="col-md-12">
@@ -282,7 +366,7 @@ if (isset($_SESSION["adminEmail"])){
                                             <div class="col-md-12">
                                                 <input type="number" class="form-control form-control-line" id="booking_amount" name="booking_amount" 
                                                        placeholder="Enter total rental amount in Rwandan Francs" min="1" required
-                                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')" pattern="^\d{16}$">
+                                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                                 <small class="form-text text-muted">Enter the total rental fee for this booking</small>
                                             </div>
                                         </div>
