@@ -126,7 +126,7 @@ include "../../web_db/connection.php";  // your DB connection file
             negotiated_price, 
             rent_date, 
             return_date,
-            days_in_rent, 
+            days_in_rent,
             total_fee,
             payment_status,
             amount_paid,

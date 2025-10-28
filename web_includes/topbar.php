@@ -45,180 +45,199 @@
                             </div>
                         </li>
                                   
-                                <!--External Cars alerts-->
-                                <?php include __DIR__ . "/externalCarsAlerts.php"; ?>
-                                <li class="nav-item dropdown no-arrow mx-1">
-                                    <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        <i class="fas fa-clock fa-fw" title="External Car"></i>
-                                        <!-- Counter - Alerts -->
-                                        <span class="badge badge-danger badge-counter"><?php echo $badgeCount; ?></span>
+                        <!--External Cars alerts-->
+                        <?php include __DIR__ . "/externalCarsAlerts.php"; ?>
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-clock fa-fw" title="External Car"></i>
+                                <!-- Counter - Alerts -->
+                                <?php if ($badgeCount > 0): ?>
+                                    <span class="badge badge-danger badge-counter"><?php echo $badgeCount; ?></span>
+                                <?php endif; ?>
+                            </a>
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="alertsDropdown">
+                                <h6 class="dropdown-header">External Rental Falling off Alerts</h6>
+
+                                <?php if (!empty($cars)): ?>
+                                    <?php foreach ($cars as $car): ?>
+                                        <a class="dropdown-item d-flex align-items-center" href="renew_insurance.php?car_id=<?php echo $car['car_id']; ?>">
+                                            <div class="mr-3">
+                                                <div class="icon-circle bg-warning">
+                                                    <i class="fas fa-info text-white"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div  class="medium text-danger"><?php echo $car['expected_return_date']; ?> Rental is Falling off</div>
+                                                <span class="font-weight-bold"><?php echo $car['car_name'] . " (" . $car['plate_number'] . ") External Rent is Falling Off!"; ?></span>                                                        
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <a class="dropdown-item d-flex align-items-center" href="#">
+                                        <div class="mr-3">
+                                            <div class="icon-circle bg-success">
+                                                <i class="fas fa-check text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="font-weight-bold">No External Rent about to Fall off</span>
+                                        </div>
                                     </a>
-                                    <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                        aria-labelledby="alertsDropdown">
-                                        <h6 class="dropdown-header">External Rental Falling off Alerts</h6>
+                                <?php endif; ?>
+                            </div>
+                        </li>
 
-                                        <?php if (!empty($cars)): ?>
-                                            <?php foreach ($cars as $car): ?>
-                                                <a class="dropdown-item d-flex align-items-center" href="renew_insurance.php?car_id=<?php echo $car['car_id']; ?>">
-                                                    <div class="mr-3">
-                                                        <div class="icon-circle bg-warning">
-                                                            <i class="fas fa-info text-white"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div  class="medium text-danger"><?php echo $car['expected_return_date']; ?> Rental is Falling off</div>
-                                                        <span class="font-weight-bold"><?php echo $car['car_name'] . " (" . $car['plate_number'] . ") External Rent is Falling Off!"; ?></span>                                                        
-                                                    </div>
-                                                </a>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                                <div class="mr-3">
-                                                    <div class="icon-circle bg-success">
-                                                        <i class="fas fa-check text-white"></i>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <span class="font-weight-bold">No External Rent about to Fall off</span>
-                                                </div>
-                                            </a>
-                                        <?php endif; ?>
-                                    </div>
-                                </li>
+                        <!--Insurance Alerts-->
+                        <?php include __DIR__ . "/insurance_alerts.php"; ?>
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="insuranceAlertsDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-handshake fa-fw" title="Insurance alerts"></i>
+                                <!-- Counter - Alerts -->
+                                <?php if ($badgeCount > 0): ?>
+                                    <span class="badge badge-danger badge-counter"><?php echo $badgeCount; ?></span>
+                                <?php endif; ?>
+                            </a>
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="insuranceAlertsDropdown">
+                                <h6 class="dropdown-header">Insurance Expiration Alerts</h6>
 
-                                <!--Insurance Alerts-->
-                                <?php include __DIR__ . "/insurance_alerts.php"; ?>
-                                <li class="nav-item dropdown no-arrow mx-1">
-                                    <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        <i class="fas fa-handshake fa-fw" title="Insurance alerts"></i>
-                                        <!-- Counter - Alerts -->
-                                        <span class="badge badge-danger badge-counter"><?php echo $badgeCount; ?></span>
+                                <?php if (!empty($cars)): ?>
+                                    <?php foreach ($cars as $car): ?>
+                                        <a class="dropdown-item d-flex align-items-center" href="renew_insurance.php?car_id=<?php echo $car['car_id']; ?>">
+                                            <div class="mr-3">
+                                                <div class="icon-circle bg-warning">
+                                                    <i class="fas fa-exclamation-triangle text-white"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div  class="medium text-danger"><?php echo $car['insurance_expiry_date']; ?> Expiring Soon!</div>
+                                                <span class="font-weight-bold"><?php echo $car['car_name'] . " (" . $car['plate_number'] . ") insurance expiring soon!"; ?></span>                                                        
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <a class="dropdown-item d-flex align-items-center" href="#">
+                                        <div class="mr-3">
+                                            <div class="icon-circle bg-success">
+                                                <i class="fas fa-check text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="font-weight-bold">Insurance of All Cars is still Valid</span>
+                                        </div>
                                     </a>
-                                    <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                        aria-labelledby="alertsDropdown">
-                                        <h6 class="dropdown-header">Insurance Expiration Alerts</h6>
+                                <?php endif; ?>                                        
+                            </div>
+                        </li> 
 
-                                        <?php if (!empty($cars)): ?>
-                                            <?php foreach ($cars as $car): ?>
-                                                <a class="dropdown-item d-flex align-items-center" href="renew_insurance.php?car_id=<?php echo $car['car_id']; ?>">
-                                                    <div class="mr-3">
-                                                        <div class="icon-circle bg-warning">
-                                                            <i class="fas fa-exclamation-triangle text-white"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div  class="medium text-danger"><?php echo $car['insurance_expiry_date']; ?> Expiring Soon!</div>
-                                                        <span class="font-weight-bold"><?php echo $car['car_name'] . " (" . $car['plate_number'] . ") insurance expiring soon!"; ?></span>                                                        
-                                                    </div>
-                                                </a>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                                <div class="mr-3">
-                                                    <div class="icon-circle bg-success">
-                                                        <i class="fas fa-check text-white"></i>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <span class="font-weight-bold">Insurance of All Cars is still Valid</span>
-                                                </div>
-                                            </a>
-                                        <?php endif; ?>                                        
-                                    </div>
-                                </li> 
-
-                            <!-- Control Alerts -->
-                            <?php include __DIR__ . "/control_alerts.php"; ?>
-                            <li class="nav-item dropdown no-arrow mx-1">
-                                <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <i class="fas fa-tools" title="Technical Control ALerts"></i>
-                                    <!-- Counter - Messages -->
+                        <!-- Control Alerts -->
+                        <?php include __DIR__ . "/control_alerts.php"; ?>
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-tools" title="Technical Control Alerts"></i>
+                                <!-- Counter - Messages -->
+                                <?php if ($badgeCountforControl > 0): ?>
                                     <span class="badge badge-danger badge-counter"><?php echo $badgeCountforControl; ?></span>
-                                </a>
-                                <!-- Dropdown - Messages -->
-                                <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                    aria-labelledby="messagesDropdown">
-                                    <h6 class="dropdown-header">
-                                        Techinical Control Expiration Alerts
-                                    </h6>
-                                    <?php if (!empty($control_expiration_cars)): ?>
-                                                <?php foreach ($control_expiration_cars as $control): ?>
-                                                    <a class="dropdown-item d-flex align-items-center" href="renew_control.php?car_id=<?php echo $control['car_id']; ?>">
-                                                        <div class="mr-3">
-                                                            <div class="icon-circle bg-warning">
-                                                                <i class="fas fa-exclamation-triangle text-white"></i>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div class="medium text-danger"><?php echo $control['control_expiry_date']; ?> Expiring Soon</div>
-                                                            <span class="font-weight-bold"><?php echo $control['car_name'] . " (" . $control['plate_number'] . ") expiring soon!"; ?></span>
-                                                        </div>
-                                                    </a>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                                    <div class="mr-3">
-                                                        <div class="icon-circle bg-success">
-                                                            <i class="fas fa-check text-white"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <span class="font-weight-bold">Techincal Control of all Cars is Up to Date.</span>
-                                                    </div>
-                                                </a>
-                                            <?php endif; ?>                                
-                                </div>
-                            </li>
+                                <?php endif; ?>
+                            </a>
+                            <!-- Dropdown - Messages -->
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="messagesDropdown">
 
+                                <h6 class="dropdown-header">
+                                    Technical Control Expiration Alerts
+                                </h6>
 
-                            <!--Registration Codes--> 
-                            <?php include __DIR__ . "/registration_codes.php"; ?>
-                            <li class="nav-item dropdown no-arrow mx-1">
-                                <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <i class="fas fa-key" title="Technical Control ALerts"></i>
-                                    <!-- Counter - Messages -->
-                                    <span class="badge badge-danger badge-counter"><?php echo $badgeCountforcodes; ?></span>
-                                </a>
-                                <!-- Dropdown - Messages -->
-                                <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                    aria-labelledby="messagesDropdown">
-                                    <h6 class="dropdown-header">
-                                        Registration Codes
-                                    </h6>
-                                    <?php if (!empty($allCodes)): ?>
-                                                <?php 
-                                                    $codeCount = 0;
-                                                    foreach ($allCodes as $code):$codeCount++ ?>
-                                                    <a class="dropdown-item d-flex align-items-center" href="#">
-                                                        <div class="mr-3">
-                                                            <div class="icon-circle bg-success">
-                                                                <i class="fas fa-check text-white"></i>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div class="medium text-success"><?php echo $code['code']; ?> Available</div>
-                                                            <span class="font-weight-bold"><?php echo $codeCount . " (" . $code['code'] . ") Share It"; ?></span>
-                                                        </div>
-                                                    </a>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                                    <div class="mr-3">
-                                                        <div class="icon-circle bg-success">
-                                                            <i class="fas fa-check text-white"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <span class="font-weight-bold">No Registration PassKeys. Generate New one</span>
-                                                    </div>
-                                                </a>
-                                            <?php endif; ?>                                
-                                </div>
-                            </li>
+                                <?php if (!empty($control_expiration_cars)): ?>
+                                    <?php foreach ($control_expiration_cars as $control): ?>
+                                        <a class="dropdown-item d-flex align-items-center" href="renew_control.php?car_id=<?php echo $control['car_id']; ?>">
+                                            <div class="mr-3">
+                                                <div class="icon-circle bg-warning">
+                                                    <i class="fas fa-exclamation-triangle text-white"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="medium text-danger"><?php echo $control['control_expiry_date']; ?> Expiring Soon</div>
+                                                <span class="font-weight-bold"><?php echo $control['car_name'] . " (" . $control['plate_number'] . ") expiring soon!"; ?></span>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <a class="dropdown-item d-flex align-items-center" href="#">
+                                        <div class="mr-3">
+                                            <div class="icon-circle bg-success">
+                                                <i class="fas fa-check text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="font-weight-bold">Technical Control of all Cars is Up to Date.</span>
+                                        </div>
+                                    </a>
+                                <?php endif; ?>                                
+                            </div>
+                        </li>
+
+                        <!--Rental Return Alerts (Combined Internal & External)--> 
+                        <?php include __DIR__ . "/rental_return_alerts.php"; ?>
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="rentalAlertsDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-car-side" title="Rental Return Alerts"></i>
+                                <!-- Counter - Rental Alerts -->
+                                <?php if ($badgeCountForRentals > 0): ?>
+                                    <span class="badge badge-danger badge-counter"><?php echo $badgeCountForRentals; ?></span>
+                                <?php endif; ?>
+                            </a>
+                            <!-- Dropdown - Rental Alerts -->
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="rentalAlertsDropdown">
+                                <h6 class="dropdown-header">
+                                    Rental Return Alerts
+                                </h6>
+                                <?php if (!empty($rentals)): ?>
+                                    <?php foreach ($rentals as $rental): ?>
+                                        <a class="dropdown-item d-flex align-items-center" href="#">
+                                            <div class="mr-3">
+                                                <div class="icon-circle <?php echo ($rental['status'] == 'OVERDUE') ? 'bg-danger' : 'bg-warning'; ?>">
+                                                    <i class="fas fa-<?php echo ($rental['status'] == 'OVERDUE') ? 'exclamation-circle' : 'clock'; ?> text-white"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="small">
+                                                    <span class="badge badge-<?php echo ($rental['rental_type'] == 'Internal') ? 'primary' : 'info'; ?>">
+                                                        <?php echo $rental['rental_type']; ?>
+                                                    </span>
+                                                </div>
+                                                <div class="medium text-danger">
+                                                    <?php echo $rental['return_date']; ?> - <?php echo $rental['status']; ?>
+                                                </div>
+                                                <span class="font-weight-bold">
+                                                    <?php echo $rental['car_name'] . " (" . $rental['plate_number'] . ")"; ?>
+                                                </span>
+                                                <div class="small text-gray-500">
+                                                    Renter: <?php echo $rental['renter_full_name']; ?>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <a class="dropdown-item d-flex align-items-center" href="#">
+                                        <div class="mr-3">
+                                            <div class="icon-circle bg-success">
+                                                <i class="fas fa-check text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="font-weight-bold">No Rentals Returning Soon</span>
+                                        </div>
+                                    </a>
+                                <?php endif; ?>                                
+                            </div>
+                        </li>
 
                         <div class="topbar-divider d-none d-sm-block"></div>
 
